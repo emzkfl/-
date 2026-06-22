@@ -205,6 +205,22 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
             failures.append(f"{context}/{row.get('name')}: row metric before mismatch")
         if row.get("metricAfter") != row.get("metricBefore", 0) + row.get("expectedGain", 0):
             failures.append(f"{context}/{row.get('name')}: row metric after mismatch")
+        boss_impact = row.get("bossImpact") or {}
+        if not boss_impact:
+            failures.append(f"{context}/{row.get('name')}: boss impact missing")
+        else:
+            if boss_impact.get("metric") != "unifiedConverted380":
+                failures.append(f"{context}/{row.get('name')}: boss impact metric mismatch")
+            if boss_impact.get("metricBefore") != row.get("metricBefore"):
+                failures.append(f"{context}/{row.get('name')}: boss impact metric before mismatch")
+            if boss_impact.get("metricAfter") != row.get("metricAfter"):
+                failures.append(f"{context}/{row.get('name')}: boss impact metric after mismatch")
+            if boss_impact.get("partyPossibleAfter", 0) < boss_impact.get("partyPossibleBefore", 0):
+                failures.append(f"{context}/{row.get('name')}: boss impact party count decreased")
+            if boss_impact.get("soloPossibleAfter", 0) < boss_impact.get("soloPossibleBefore", 0):
+                failures.append(f"{context}/{row.get('name')}: boss impact solo count decreased")
+            if not boss_impact.get("label"):
+                failures.append(f"{context}/{row.get('name')}: boss impact label missing")
         if evidence.get("metricBefore") != row.get("metricBefore"):
             failures.append(f"{context}/{row.get('name')}: evidence metric before mismatch")
         if evidence.get("metricAfter") != row.get("metricAfter"):
@@ -343,6 +359,8 @@ def equipment_repair_annotation_failures(view: dict, context: str) -> list[str]:
             failures.append(f"{context}/{row.get('name')}: equipment repair metric after mismatch")
         if repair.get("expectedGain") != row.get("expectedGain"):
             failures.append(f"{context}/{row.get('name')}: equipment repair expected gain mismatch")
+        if (repair.get("bossImpact") or {}).get("label") != (row.get("bossImpact") or {}).get("label"):
+            failures.append(f"{context}/{row.get('name')}: equipment repair boss impact mismatch")
         if repair.get("recommendedAction") != row.get("recommendedAction"):
             failures.append(f"{context}/{row.get('name')}: equipment repair action mismatch")
         if repair.get("sourcePath") != "itemUpgradePlan.all":
@@ -930,6 +948,7 @@ def assert_preset_repair_summary(row: dict, context: str) -> None:
         assert target["metricBefore"] == plan["currentConverted"], f"{context}: top repair metric before mismatch"
         assert target["metricAfter"] == top["metricAfter"], f"{context}: top repair metric after mismatch"
         assert target["expectedGain"] == top["expectedGain"], f"{context}: top repair gain mismatch"
+        assert target.get("bossImpact", {}).get("label") == top.get("bossImpact", {}).get("label"), f"{context}: top repair boss impact mismatch"
         assert target["recommendedAction"] == top["recommendedAction"], f"{context}: top repair action mismatch"
         assert target["sourcePath"] == "itemUpgradePlan.all", f"{context}: top repair source path mismatch"
     else:

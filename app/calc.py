@@ -1773,6 +1773,65 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
     }
 
 
+def build_repair_boss_impact(metric_before: int, metric_after: int) -> dict[str, Any]:
+    before_board = build_boss_board(metric_before)
+    after_board = build_boss_board(metric_after)
+    party_unlocked = [
+        after.get("name") or "-"
+        for before, after in zip(before_board, after_board)
+        if not before.get("partyPossible") and after.get("partyPossible")
+    ]
+    solo_unlocked = [
+        after.get("name") or "-"
+        for before, after in zip(before_board, after_board)
+        if not before.get("soloPossible") and after.get("soloPossible")
+    ]
+    party_before = sum(1 for row in before_board if row.get("partyPossible"))
+    party_after = sum(1 for row in after_board if row.get("partyPossible"))
+    solo_before = sum(1 for row in before_board if row.get("soloPossible"))
+    solo_after = sum(1 for row in after_board if row.get("soloPossible"))
+    next_party = min(
+        (row for row in after_board if not row.get("partyPossible")),
+        key=lambda row: abs(float(row.get("partyGap") or 0.0)),
+        default=None,
+    )
+    next_solo = min(
+        (row for row in after_board if not row.get("soloPossible")),
+        key=lambda row: abs(float(row.get("soloGap") or 0.0)),
+        default=None,
+    )
+
+    if solo_unlocked:
+        label = f"솔플 해금 {', '.join(solo_unlocked[:2])}"
+    elif party_unlocked:
+        label = f"파티 해금 {', '.join(party_unlocked[:2])}"
+    elif next_solo:
+        label = f"다음 솔플 {next_solo.get('name') or '-'}까지 {abs(int_number(next_solo.get('soloGap'))):,}"
+    elif next_party:
+        label = f"다음 파티 {next_party.get('name') or '-'}까지 {abs(int_number(next_party.get('partyGap'))):,}"
+    else:
+        label = "현재 보스 판정 유지"
+
+    return {
+        "metric": "unifiedConverted380",
+        "metricBefore": metric_before,
+        "metricAfter": metric_after,
+        "partyPossibleBefore": party_before,
+        "partyPossibleAfter": party_after,
+        "soloPossibleBefore": solo_before,
+        "soloPossibleAfter": solo_after,
+        "partyUnlockedCount": len(party_unlocked),
+        "soloUnlockedCount": len(solo_unlocked),
+        "partyUnlocked": party_unlocked[:3],
+        "soloUnlocked": solo_unlocked[:3],
+        "nextPartyTarget": next_party.get("name") if next_party else "",
+        "nextPartyGap": abs(int_number(next_party.get("partyGap"))) if next_party else 0,
+        "nextSoloTarget": next_solo.get("name") if next_solo else "",
+        "nextSoloGap": abs(int_number(next_solo.get("soloGap"))) if next_solo else 0,
+        "label": label,
+    }
+
+
 def build_calculation_audit(
     converted: dict[str, Any],
     hexa_converted: dict[str, Any],
@@ -3314,6 +3373,7 @@ def build_item_upgrade_plan(
         weaknesses = item_weakness_breakdown(item, character_class, main_stat, attack_type)
         expected_gain = round(best["gain"])
         metric_after = metric_before + expected_gain
+        boss_impact = build_repair_boss_impact(metric_before, metric_after)
         priority_score = round(best["gain"] + contribution * 0.05)
         recommendation_evidence = build_recommendation_evidence(
             item,
@@ -3346,6 +3406,7 @@ def build_item_upgrade_plan(
                 "metric": "unifiedConverted380",
                 "metricBefore": metric_before,
                 "metricAfter": metric_after,
+                "bossImpact": boss_impact,
                 "expectedGain": expected_gain,
                 "expectedGainPercent": round(best["gain"] / current_converted * 100, 2) if current_converted else 0.0,
                 "contribution": round(contribution),
@@ -3549,6 +3610,7 @@ def equipment_repair_summary(row: dict[str, Any], rank: int) -> dict[str, Any]:
         "recommendedAction": row.get("recommendedAction") or "",
         "reason": row.get("reason") or "",
         "weaknessLabel": weakness.get("label") or "",
+        "bossImpact": row.get("bossImpact") or {},
         "sourcePath": "itemUpgradePlan.all",
     }
 

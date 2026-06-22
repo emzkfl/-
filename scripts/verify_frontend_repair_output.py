@@ -44,6 +44,7 @@ REQUIRED_RENDER_MARKERS = {
     "row.expectedGainPercent": "expected gain percent",
     "row.metricBefore": "current representative metric before repair",
     "row.metricAfter": "projected representative metric after repair",
+    "row.bossImpact": "boss impact after repair",
     "row.contribution": "current item contribution",
     "row.priorityScore": "priority score",
     "row.potentialSummary": "potential summary",
@@ -60,6 +61,7 @@ REQUIRED_RENDER_MARKERS = {
     "scenario.gain": "scenario gain",
     "scenario.metricBefore": "scenario representative metric before repair",
     "scenario.metricAfter": "scenario representative metric after repair",
+    "보스 영향": "boss impact label",
     "추천할 개선 항목이 없습니다": "empty repair state",
     "개선 후": "projected metric label",
 }
@@ -113,6 +115,7 @@ def assert_frontend_repair_output() -> None:
         "repairKey(item.slot, item.name)",
         "repair.expectedGain",
         "repair.metricAfter",
+        "repair.bossImpact",
         "item-repair",
         "needs-repair",
     ):

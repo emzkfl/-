@@ -621,6 +621,7 @@ function renderUpgradePlan(data) {
   upgradeList.innerHTML = rows
     .map((row, index) => {
       const evidence = row.recommendationEvidence || {};
+      const bossImpact = row.bossImpact || {};
       const evidenceText = evidence.weaknessLabel
         ? `${evidence.weaknessLabel} ${formatNumber(evidence.weaknessGap || 0, 1)}${evidence.weaknessUnit || ""} 부족 · 기여가중 +${formatNumber(evidence.weightedContribution || 0)}`
         : `기여가중 +${formatNumber(evidence.weightedContribution || 0)}`;
@@ -648,6 +649,7 @@ function renderUpgradePlan(data) {
             <span>현재 기여 ${formatNumber(row.contribution)}</span>
             <span>우선 ${formatNumber(row.priorityScore)}</span>
             <span>${escapeHtml(evidenceText)}</span>
+            ${bossImpact.label ? `<span>보스 영향 ${escapeHtml(bossImpact.label)}</span>` : ""}
           </div>
           <div class="upgrade-weaknesses">${weaknesses}</div>
           <div class="upgrade-scenarios">${scenarios}</div>
@@ -687,6 +689,7 @@ function renderItems(data) {
             <strong>${formatNumber(repair.rank)}순위 개선</strong>
             <span>+${formatNumber(repair.expectedGain || 0)} · 개선 후 ${formatNumber(repair.metricAfter || 0)}</span>
             <small>${escapeHtml(repair.recommendedType || "-")} · ${escapeHtml(repair.recommendedAction || "-")}</small>
+            ${repair.bossImpact?.label ? `<small>보스 영향 ${escapeHtml(repair.bossImpact.label)}</small>` : ""}
           </div>`
         : "";
       return `<article class="item-card${repair ? " needs-repair" : ""}">

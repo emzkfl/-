@@ -104,6 +104,7 @@ def assert_frontend_repair_output() -> None:
     if "plan.currentConverted" not in render_upgrade or "primary.value" not in render_upgrade:
         failures.append("renderUpgradePlan: current representative metric is not shown")
     for marker in (
+        "item.repairRecommendation",
         "selectedRepairLookup(data)",
         "repairKey(item.slot, item.name)",
         "repair.expectedGain",

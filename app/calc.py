@@ -3524,6 +3524,58 @@ def summarize_items(item_response: dict[str, Any], main_stat: str, attack_type: 
     return {"items": summarized, "count": len(summarized), "starforceTotal": sum(item["starforce"] for item in summarized)}
 
 
+def equipment_repair_key(slot: str | None, name: str | None) -> str:
+    return f"{slot or ''}::{name or ''}"
+
+
+def equipment_repair_summary(row: dict[str, Any], rank: int) -> dict[str, Any]:
+    weakness = (row.get("weaknesses") or [{}])[0]
+    return {
+        "rank": rank,
+        "metric": row.get("metric") or "unifiedConverted380",
+        "metricBefore": int_number(row.get("metricBefore")),
+        "metricAfter": int_number(row.get("metricAfter")),
+        "expectedGain": int_number(row.get("expectedGain")),
+        "expectedGainPercent": row.get("expectedGainPercent") or 0,
+        "priorityScore": int_number(row.get("priorityScore")),
+        "recommendedType": row.get("recommendedType") or "",
+        "recommendedAction": row.get("recommendedAction") or "",
+        "reason": row.get("reason") or "",
+        "weaknessLabel": weakness.get("label") or "",
+        "sourcePath": "itemUpgradePlan.all",
+    }
+
+
+def repair_lookup_from_plan(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    rows = plan.get("all") or plan.get("top") or []
+    lookup: dict[str, dict[str, Any]] = {}
+    for index, row in enumerate(rows, 1):
+        repair = equipment_repair_summary(row, index)
+        lookup[equipment_repair_key(row.get("slot"), row.get("name"))] = repair
+        lookup[equipment_repair_key(row.get("part"), row.get("name"))] = repair
+    return lookup
+
+
+def annotate_equipment_repairs(items: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
+    lookup = repair_lookup_from_plan(plan)
+    annotated = []
+    for item in items.get("items") or []:
+        copy = dict(item)
+        repair = lookup.get(equipment_repair_key(item.get("slot"), item.get("name"))) or lookup.get(
+            equipment_repair_key(item.get("part"), item.get("name"))
+        )
+        copy["needsRepair"] = bool(repair)
+        if repair:
+            copy["repairRecommendation"] = repair
+        annotated.append(copy)
+
+    return {
+        **items,
+        "items": annotated,
+        "repairTargetCount": sum(1 for item in annotated if item.get("needsRepair")),
+    }
+
+
 def summarize_symbols(symbol_response: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {
@@ -4106,6 +4158,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         score_multiplier=unified_multiplier,
         basis=unified_basis,
     )
+    items = annotate_equipment_repairs(items, item_upgrade_plan)
     preset_optimization = optimize_presets(
         raw,
         stats,
@@ -4173,6 +4226,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "unionGrade": union.get("union_grade"),
         "equipmentCount": items["count"],
         "starforceTotal": items["starforceTotal"],
+        "repairTargetCount": items.get("repairTargetCount", 0),
         "jobRuleApplied": converted["jobRuleApplied"],
         "jobConvertedMultiplier": converted["jobConvertedMultiplier"],
         "combatPowerJobFactor": converted["combatPowerJobFactor"],

@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 from app.calc import API_OPTIONAL_SECTIONS, JOB_DETAIL_RULES, KMS_JOB_NAMES, build_view_model  # noqa: E402
 from scripts.verify_calculation import (  # noqa: E402
     boss_board_failures,
+    equipment_repair_annotation_failures,
     formula_integrity_failures,
     formula_manifest_failures,
     input_source_failures,
@@ -378,6 +379,7 @@ def assert_job_view(rule: dict[str, Any]) -> list[str]:
     failures.extend(assert_unified_metric(view, context))
     failures.extend(boss_board_failures(view, context))
     failures.extend(assert_repair_plan(view, context))
+    failures.extend(equipment_repair_annotation_failures(view, context))
     failures.extend(assert_upgrade_targets(rule, view, context))
     failures.extend(assert_goal_contract(view, context))
     failures.extend(formula_manifest_failures(manifest, context, job))

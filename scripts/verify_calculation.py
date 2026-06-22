@@ -299,6 +299,57 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     return failures
 
 
+def equipment_repair_annotation_failures(view: dict, context: str) -> list[str]:
+    failures: list[str] = []
+    plan = view.get("itemUpgradePlan") or {}
+    equipment = view.get("equipment") or []
+    rows = plan.get("top") or []
+    equipment_by_key = {
+        f"{item.get('slot') or ''}::{item.get('name') or ''}": item
+        for item in equipment
+    }
+    equipment_by_key.update(
+        {
+            f"{item.get('part') or ''}::{item.get('name') or ''}": item
+            for item in equipment
+        }
+    )
+
+    if rows and not any(item.get("needsRepair") for item in equipment):
+        failures.append(f"{context}: equipment repair annotations missing")
+
+    annotated_count = sum(1 for item in equipment if item.get("needsRepair"))
+    if view.get("summary", {}).get("repairTargetCount") != annotated_count:
+        failures.append(f"{context}: summary repair target count mismatch")
+
+    for index, row in enumerate(rows, 1):
+        item = equipment_by_key.get(f"{row.get('slot') or ''}::{row.get('name') or ''}") or equipment_by_key.get(
+            f"{row.get('part') or ''}::{row.get('name') or ''}"
+        )
+        if not item:
+            failures.append(f"{context}/{row.get('name')}: repair target is not present in equipment list")
+            continue
+        repair = item.get("repairRecommendation") or {}
+        if not repair:
+            failures.append(f"{context}/{row.get('name')}: equipment repair recommendation missing")
+            continue
+        if repair.get("rank") != index:
+            failures.append(f"{context}/{row.get('name')}: equipment repair rank mismatch")
+        if repair.get("metric") != "unifiedConverted380":
+            failures.append(f"{context}/{row.get('name')}: equipment repair metric mismatch")
+        if repair.get("metricBefore") != plan.get("currentConverted"):
+            failures.append(f"{context}/{row.get('name')}: equipment repair metric before mismatch")
+        if repair.get("metricAfter") != row.get("metricAfter"):
+            failures.append(f"{context}/{row.get('name')}: equipment repair metric after mismatch")
+        if repair.get("expectedGain") != row.get("expectedGain"):
+            failures.append(f"{context}/{row.get('name')}: equipment repair expected gain mismatch")
+        if repair.get("recommendedAction") != row.get("recommendedAction"):
+            failures.append(f"{context}/{row.get('name')}: equipment repair action mismatch")
+        if repair.get("sourcePath") != "itemUpgradePlan.all":
+            failures.append(f"{context}/{row.get('name')}: equipment repair source path mismatch")
+    return failures
+
+
 def formula_integrity_failures(view: dict, context: str) -> list[str]:
     failures: list[str] = []
     audit = view.get("formulaIntegrityAudit") or {}
@@ -547,6 +598,7 @@ def assert_full_job_view_models() -> None:
         if plan["currentConverted"] != summary["unifiedConverted380"]:
             failures.append(f"{job}: item plan current score mismatch")
         failures.extend(recommendation_evidence_failures(plan, job))
+        failures.extend(equipment_repair_annotation_failures(view, job))
         if not plan["top"]:
             failures.append(f"{job}: no item repair recommendations")
         for row in plan.get("top") or []:
@@ -725,6 +777,7 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"][0]["priorityScore"] > 0
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
     assert not recommendation_evidence_failures(view["itemUpgradePlan"], "sample 레테")
+    assert not equipment_repair_annotation_failures(view, "sample 레테")
     assert view["itemUpgradePlan"]["repairEvidence"]["top"]["item"] == view["itemUpgradePlan"]["top"][0]["name"]
     assert view["itemUpgradePlan"]["repairAudit"]["allPassed"]
     assert view["itemUpgradePlan"]["repairAudit"]["topItem"] == view["itemUpgradePlan"]["top"][0]["name"]

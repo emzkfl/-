@@ -41,6 +41,8 @@ REQUIRED_RENDER_MARKERS = {
     "row.reason": "recommendation reason",
     "row.expectedGain": "expected converted gain",
     "row.expectedGainPercent": "expected gain percent",
+    "row.metricBefore": "current representative metric before repair",
+    "row.metricAfter": "projected representative metric after repair",
     "row.contribution": "current item contribution",
     "row.priorityScore": "priority score",
     "row.potentialSummary": "potential summary",
@@ -55,7 +57,10 @@ REQUIRED_RENDER_MARKERS = {
     "weakness.gap": "weakness gap",
     "scenario.action": "scenario action",
     "scenario.gain": "scenario gain",
+    "scenario.metricBefore": "scenario representative metric before repair",
+    "scenario.metricAfter": "scenario representative metric after repair",
     "추천할 개선 항목이 없습니다": "empty repair state",
+    "개선 후": "projected metric label",
 }
 
 

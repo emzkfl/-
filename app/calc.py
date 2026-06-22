@@ -2815,6 +2815,9 @@ def build_repair_checklist(rows: list[dict[str, Any]], limit: int = 5) -> list[d
                 "action": action,
                 "description": description,
                 "reason": row.get("reason") or "",
+                "metric": row.get("metric") or "unifiedConverted380",
+                "metricBefore": row.get("metricBefore") or 0,
+                "metricAfter": row.get("metricAfter") or 0,
                 "expectedGain": gain,
                 "expectedGainPercent": row.get("expectedGainPercent") or 0,
                 "priorityScore": row.get("priorityScore") or 0,
@@ -2849,6 +2852,9 @@ def build_repair_roadmap(
                 "item": row.get("name") or "-",
                 "type": scenario.get("type") or row.get("recommendedType") or "-",
                 "action": scenario.get("action") or row.get("recommendedAction") or "-",
+                "metric": row.get("metric") or "unifiedConverted380",
+                "metricBefore": row.get("metricBefore") or round(current_converted),
+                "metricAfter": round(projected),
                 "expectedGain": round(gain),
                 "cumulativeGain": round(cumulative_gain),
                 "projectedConverted": round(projected),
@@ -2887,15 +2893,21 @@ def build_recommendation_evidence(
     contribution: float,
     priority_score: int,
     weaknesses: list[dict[str, Any]],
+    metric_before: int,
+    metric_after: int,
 ) -> dict[str, Any]:
     primary_weakness = weaknesses[0] if weaknesses else {}
     weighted_contribution = contribution * 0.05
+    expected_gain = round(float(best.get("gain") or 0.0))
     return {
         "metric": "unifiedConverted380",
         "basis": basis,
         "source": "nexon_item_equipment_options",
+        "metricPath": "itemUpgradePlan.currentConverted",
+        "metricBefore": metric_before,
+        "metricAfter": metric_after,
         "priorityFormula": "expectedGain + contribution * 0.05",
-        "expectedGain": round(float(best.get("gain") or 0.0)),
+        "expectedGain": expected_gain,
         "contribution": round(contribution),
         "contributionWeight": 0.05,
         "weightedContribution": round(weighted_contribution),
@@ -2942,7 +2954,10 @@ def build_repair_consistency_audit(
     repair_checklist: list[dict[str, Any]],
     repair_evidence: dict[str, Any],
     basis: str,
+    current_converted: float,
 ) -> dict[str, Any]:
+    metric_before = round(current_converted)
+
     def priority_key(row: dict[str, Any]) -> tuple[float, float, float]:
         return (
             float(row.get("priorityScore") or 0.0),
@@ -2959,6 +2974,18 @@ def build_repair_consistency_audit(
         and (row.get("recommendationEvidence") or {}).get("expectedGain") == row.get("expectedGain")
         and (row.get("recommendationEvidence") or {}).get("contribution") == row.get("contribution")
         and (row.get("recommendationEvidence") or {}).get("priorityScore") == row.get("priorityScore")
+        and (row.get("recommendationEvidence") or {}).get("metricBefore") == row.get("metricBefore")
+        and (row.get("recommendationEvidence") or {}).get("metricAfter") == row.get("metricAfter")
+        for row in rows
+    )
+    metric_delta_ok = all(
+        row.get("metricBefore") == metric_before
+        and row.get("metricAfter") == metric_before + int_number(row.get("expectedGain"))
+        and all(
+            scenario.get("metricBefore") == metric_before
+            and scenario.get("metricAfter") == metric_before + int_number(scenario.get("gain"))
+            for scenario in (row.get("scenarios") or [])
+        )
         for row in rows
     )
     checklist_ok = all(
@@ -2966,6 +2993,7 @@ def build_repair_consistency_audit(
         and checklist.get("item") == rows[index].get("name")
         and checklist.get("expectedGain") == rows[index].get("expectedGain")
         and (checklist.get("recommendationEvidence") or {}).get("priorityScore") == rows[index].get("priorityScore")
+        and checklist.get("metricAfter") == rows[index].get("metricAfter")
         for index, checklist in enumerate(repair_checklist)
     )
     top = rows[0] if rows else {}
@@ -2987,6 +3015,11 @@ def build_repair_consistency_audit(
             "label": "추천 근거",
             "passed": evidence_ok,
             "detail": "각 카드의 예상 상승량·기여도·우선순위 근거 일치",
+        },
+        {
+            "label": "지표 변화량",
+            "passed": metric_delta_ok,
+            "detail": "현재 대표 환산 + 예상 상승량 = 개선 후 예상 대표 환산",
         },
         {
             "label": "체크리스트",
@@ -3012,9 +3045,11 @@ def build_repair_consistency_audit(
         "checkCount": len(checks),
         "failedCount": len(failed),
         "candidateCount": len(rows),
+        "metricBefore": metric_before,
         "topItem": top.get("name") or "",
         "topAction": top.get("recommendedAction") or "",
         "topExpectedGain": top.get("expectedGain") or 0,
+        "topMetricAfter": top.get("metricAfter") or metric_before,
         "checks": checks,
     }
 
@@ -3169,6 +3204,7 @@ def build_item_upgrade_plan(
     main_stat = str(converted.get("mainStat") or choose_main_stat(stats, character_class))
     attack_type = str(converted.get("attackType") or choose_attack_type(stats, character_class))
     stat_targets = item_upgrade_stat_targets(character_class, main_stat)
+    metric_before = round(current_converted)
     rows = []
 
     for item in items:
@@ -3193,6 +3229,8 @@ def build_item_upgrade_plan(
         potential_summary = " / ".join(potential_lines(item)) or "잠재 없음"
         additional_summary = " / ".join(potential_lines(item, additional=True)) or "에디 없음"
         weaknesses = item_weakness_breakdown(item, character_class, main_stat, attack_type)
+        expected_gain = round(best["gain"])
+        metric_after = metric_before + expected_gain
         priority_score = round(best["gain"] + contribution * 0.05)
         recommendation_evidence = build_recommendation_evidence(
             item,
@@ -3201,6 +3239,8 @@ def build_item_upgrade_plan(
             contribution,
             priority_score,
             weaknesses,
+            metric_before,
+            metric_after,
         )
         rows.append(
             {
@@ -3220,7 +3260,10 @@ def build_item_upgrade_plan(
                 "recommendedAction": best["action"],
                 "reason": best["reason"],
                 "scoreBasis": basis,
-                "expectedGain": round(best["gain"]),
+                "metric": "unifiedConverted380",
+                "metricBefore": metric_before,
+                "metricAfter": metric_after,
+                "expectedGain": expected_gain,
                 "expectedGainPercent": round(best["gain"] / current_converted * 100, 2) if current_converted else 0.0,
                 "contribution": round(contribution),
                 "priorityScore": priority_score,
@@ -3230,6 +3273,9 @@ def build_item_upgrade_plan(
                         "type": scenario["type"],
                         "action": scenario["action"],
                         "gain": round(scenario["gain"]),
+                        "metric": "unifiedConverted380",
+                        "metricBefore": metric_before,
+                        "metricAfter": metric_before + round(scenario["gain"]),
                         "gainPercent": round(scenario["gain"] / current_converted * 100, 2) if current_converted else 0.0,
                         "reason": scenario.get("reason") or "",
                     }
@@ -3247,7 +3293,7 @@ def build_item_upgrade_plan(
     repair_roadmap = build_repair_roadmap(rows, current_converted, basis)
     roadmap_summary = build_roadmap_summary(repair_roadmap, current_converted, basis)
     repair_evidence = build_repair_evidence_summary(rows, basis, main_stat, attack_type, stat_targets)
-    repair_audit = build_repair_consistency_audit(rows, repair_checklist, repair_evidence, basis)
+    repair_audit = build_repair_consistency_audit(rows, repair_checklist, repair_evidence, basis, current_converted)
     efficiency_profile = build_upgrade_efficiency_profile(
         stats,
         item_response,

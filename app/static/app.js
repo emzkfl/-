@@ -599,7 +599,7 @@ function renderUpgradePlan(data) {
         ? `${evidence.weaknessLabel} ${formatNumber(evidence.weaknessGap || 0, 1)}${evidence.weaknessUnit || ""} 부족 · 기여가중 +${formatNumber(evidence.weightedContribution || 0)}`
         : `기여가중 +${formatNumber(evidence.weightedContribution || 0)}`;
       const scenarios = (row.scenarios || [])
-        .map((scenario) => `<em>${escapeHtml(scenario.type)} · ${escapeHtml(scenario.action)} · +${formatNumber(scenario.gain)} (${formatNumber(scenario.gainPercent || 0, 2)}%)</em>`)
+        .map((scenario) => `<em>${escapeHtml(scenario.type)} · ${escapeHtml(scenario.action)} · +${formatNumber(scenario.gain)} (${formatNumber(scenario.gainPercent || 0, 2)}%) · ${formatNumber(scenario.metricBefore || row.metricBefore || 0)} → ${formatNumber(scenario.metricAfter || 0)}</em>`)
         .join("");
       const weaknesses = (row.weaknesses || [])
         .map((weakness) => `<em>${escapeHtml(weakness.label)} ${formatNumber(weakness.current, 1)}${escapeHtml(weakness.unit || "")}/${formatNumber(weakness.target, 1)}${escapeHtml(weakness.unit || "")} · 부족 ${formatNumber(weakness.gap || 0, 1)}${escapeHtml(weakness.unit || "")}</em>`)
@@ -618,6 +618,7 @@ function renderUpgradePlan(data) {
           <small class="upgrade-options">잠재 ${escapeHtml(row.potentialSummary || "-")} · 에디 ${escapeHtml(row.additionalPotentialSummary || "-")}</small>
           <div class="upgrade-metrics">
             <span>예상 +${formatNumber(row.expectedGain)} (${formatNumber(row.expectedGainPercent || 0, 2)}%)</span>
+            <span>개선 후 ${formatNumber(row.metricAfter || 0)}</span>
             <span>현재 기여 ${formatNumber(row.contribution)}</span>
             <span>우선 ${formatNumber(row.priorityScore)}</span>
             <span>${escapeHtml(evidenceText)}</span>

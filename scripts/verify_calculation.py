@@ -144,6 +144,18 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
             failures.append(f"{context}/{row.get('name')}: evidence basis mismatch")
         if evidence.get("metric") != "unifiedConverted380":
             failures.append(f"{context}/{row.get('name')}: evidence metric mismatch")
+        if evidence.get("metricPath") != "itemUpgradePlan.currentConverted":
+            failures.append(f"{context}/{row.get('name')}: evidence metric path mismatch")
+        if row.get("metric") != "unifiedConverted380":
+            failures.append(f"{context}/{row.get('name')}: row metric mismatch")
+        if row.get("metricBefore") != plan.get("currentConverted"):
+            failures.append(f"{context}/{row.get('name')}: row metric before mismatch")
+        if row.get("metricAfter") != row.get("metricBefore", 0) + row.get("expectedGain", 0):
+            failures.append(f"{context}/{row.get('name')}: row metric after mismatch")
+        if evidence.get("metricBefore") != row.get("metricBefore"):
+            failures.append(f"{context}/{row.get('name')}: evidence metric before mismatch")
+        if evidence.get("metricAfter") != row.get("metricAfter"):
+            failures.append(f"{context}/{row.get('name')}: evidence metric after mismatch")
         if evidence.get("priorityFormula") != "expectedGain + contribution * 0.05":
             failures.append(f"{context}/{row.get('name')}: priority formula mismatch")
         if evidence.get("expectedGain") != row.get("expectedGain"):
@@ -158,6 +170,13 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
                 failures.append(f"{context}/{row.get('name')}: evidence weakness label mismatch")
             if evidence.get("weaknessGap") != weakness.get("gap"):
                 failures.append(f"{context}/{row.get('name')}: evidence weakness gap mismatch")
+        for scenario in row.get("scenarios") or []:
+            if scenario.get("metric") != "unifiedConverted380":
+                failures.append(f"{context}/{row.get('name')}: scenario metric mismatch")
+            if scenario.get("metricBefore") != row.get("metricBefore"):
+                failures.append(f"{context}/{row.get('name')}: scenario metric before mismatch")
+            if scenario.get("metricAfter") != scenario.get("metricBefore", 0) + scenario.get("gain", 0):
+                failures.append(f"{context}/{row.get('name')}: scenario metric after mismatch")
 
     if rows and summary.get("top", {}).get("item") != rows[0].get("name"):
         failures.append(f"{context}: repair evidence top item mismatch")
@@ -209,6 +228,8 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
             failures.append(f"{context}: repair audit basis mismatch")
         if audit.get("metric") != "unifiedConverted380":
             failures.append(f"{context}: repair audit metric mismatch")
+        if audit.get("metricBefore") != plan.get("currentConverted"):
+            failures.append(f"{context}: repair audit metric before mismatch")
         if not audit.get("allPassed"):
             failures.append(f"{context}: repair audit failed {audit.get('checks')}")
         if audit.get("candidateCount") != len(plan.get("all") or rows):
@@ -220,6 +241,8 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
                 failures.append(f"{context}: repair audit top action mismatch")
             if audit.get("topExpectedGain") != rows[0].get("expectedGain"):
                 failures.append(f"{context}: repair audit top gain mismatch")
+            if audit.get("topMetricAfter") != rows[0].get("metricAfter"):
+                failures.append(f"{context}: repair audit top metric after mismatch")
     return failures
 
 

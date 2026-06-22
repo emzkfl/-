@@ -144,6 +144,9 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
             "recommendedType",
             "recommendedAction",
             "reason",
+            "metric",
+            "metricBefore",
+            "metricAfter",
             "expectedGain",
             "expectedGainPercent",
             "recommendationEvidence",
@@ -155,6 +158,12 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
             failures.append(f"{context}: top candidate missing fields {missing_row_fields}")
         if first.get("expectedGain", 0) <= 0:
             failures.append(f"{context}: top expected gain is not positive")
+        if first.get("metric") != "unifiedConverted380":
+            failures.append(f"{context}: top metric is not unifiedConverted380")
+        if first.get("metricBefore") != plan.get("currentConverted"):
+            failures.append(f"{context}: top metric before does not match current converted")
+        if first.get("metricAfter") != first.get("metricBefore", 0) + first.get("expectedGain", 0):
+            failures.append(f"{context}: top metric after does not match expected gain")
         if first.get("expectedGainPercent", 0) <= 0:
             failures.append(f"{context}: top expected gain percent is not positive")
         if not first.get("slot") or not first.get("name"):
@@ -173,7 +182,7 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
             failures.append(f"{context}: top recommendation evidence source missing")
         if plan.get("repairChecklist"):
             checklist_first = plan["repairChecklist"][0]
-            for key in ("slot", "item", "type", "action", "description", "reason", "expectedGain", "weakness"):
+            for key in ("slot", "item", "type", "action", "description", "reason", "metric", "metricBefore", "metricAfter", "expectedGain", "weakness"):
                 if not checklist_first.get(key):
                     failures.append(f"{context}: first checklist field {key} missing")
             if checklist_first.get("item") != first.get("name"):
@@ -184,6 +193,10 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
                 failures.append(f"{context}: first checklist slot does not match top candidate")
             if checklist_first.get("action") != first.get("recommendedAction"):
                 failures.append(f"{context}: first checklist action does not match top candidate")
+            if checklist_first.get("metricBefore") != first.get("metricBefore"):
+                failures.append(f"{context}: first checklist metric before does not match top candidate")
+            if checklist_first.get("metricAfter") != first.get("metricAfter"):
+                failures.append(f"{context}: first checklist metric after does not match top candidate")
         if repair_focus:
             if repair_focus.get("slot") != first.get("slot"):
                 failures.append(f"{context}: repair focus slot does not match top candidate")

@@ -12,8 +12,8 @@ const profileMeta = document.querySelector("#profile-meta");
 const profileIcons = document.querySelector("#profile-icons");
 const combatPower = document.querySelector("#combat-power");
 const convertedPower = document.querySelector("#converted-power");
-const hexaPower = document.querySelector("#hexa-power");
-const hexaDetail = document.querySelector("#hexa-detail");
+const metricConfidence = document.querySelector("#metric-confidence");
+const metricDetail = document.querySelector("#metric-detail");
 const selectedPresetSummary = document.querySelector("#selected-preset-summary");
 const selectedPresetValue = document.querySelector("#selected-preset-value");
 const selectedPresetDelta = document.querySelector("#selected-preset-delta");
@@ -151,8 +151,8 @@ function renderScores(data) {
   const confidence = primary.confidence || {};
   combatPower.textContent = koreanPower(summary.combatPower);
   convertedPower.textContent = formatNumber(primary.value || summary.unifiedConverted380 || summary.hexaConverted380 || summary.converted380);
-  hexaPower.textContent = formatNumber(summary.hexaConverted380);
-  hexaDetail.textContent = `${primary.label || "대표 지표"} 기준 · 신뢰도 ${confidence.label || "-"} ${formatNumber(confidence.score || 0)}점 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 스탯기여 +${formatNumber(summary.hexaStatGain380 || 0)}`;
+  metricConfidence.textContent = `${confidence.label || "-"} ${formatNumber(confidence.score || 0)}점`;
+  metricDetail.textContent = `${primary.label || "대표 지표"} 하나로 보스·프리셋·아이템 개선을 계산 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 스탯기여 +${formatNumber(summary.hexaStatGain380 || 0)}`;
 }
 
 function presetByNo(rows, no) {

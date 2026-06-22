@@ -427,9 +427,18 @@ function renderUpgradePlan(data) {
   const targets = (plan.upgradeTargets || []).join("/");
   const presetLabel = selectedPresets.itemPreset ? ` · 장비 ${selectedPresets.itemPreset}/어빌 ${selectedPresets.abilityPreset || "-"}/하이퍼 ${selectedPresets.hyperPreset || "-"}` : "";
   const focus = plan.repairFocus || {};
-  const focusText = focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
+  const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
   upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${focusText}`;
-  upgradeSlotList.innerHTML = (plan.slotSummary || [])
+  const checklistCards = (plan.repairChecklist || [])
+    .slice(0, 3)
+    .map((row) => `<article class="upgrade-slot priority">
+      <span>${formatNumber(row.rank || 0)}순위 · ${escapeHtml(row.slot || "-")}</span>
+      <strong>+${formatNumber(row.expectedGain || 0)}</strong>
+      <small>${escapeHtml(row.type || "-")} · ${escapeHtml(row.action || "-")}</small>
+      <em>${escapeHtml(row.item || "-")}${row.weakness?.label ? ` · ${escapeHtml(row.weakness.label)}` : ""}</em>
+    </article>`)
+    .join("");
+  const slotCards = (plan.slotSummary || [])
     .slice(0, 4)
     .map((slot) => `<article class="upgrade-slot">
       <span>${escapeHtml(slot.slot)}</span>
@@ -438,6 +447,7 @@ function renderUpgradePlan(data) {
       <em>${escapeHtml(slot.bestItem || "-")}${slot.topWeakness ? ` · ${escapeHtml(slot.topWeakness)}` : ""}</em>
     </article>`)
     .join("");
+  upgradeSlotList.innerHTML = checklistCards + slotCards;
   upgradeCategoryList.innerHTML = (plan.categorySummary || [])
     .slice(0, 5)
     .map((category) => `<article class="upgrade-category">

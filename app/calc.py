@@ -1987,6 +1987,38 @@ def build_upgrade_slot_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any
     return sorted(result, key=lambda row: (row["priorityScore"], row["totalGain"], row["bestGain"]), reverse=True)
 
 
+def build_repair_checklist(rows: list[dict[str, Any]], limit: int = 5) -> list[dict[str, Any]]:
+    checklist = []
+    for index, row in enumerate(rows[:limit], 1):
+        scenario = (row.get("scenarios") or [{}])[0]
+        weakness = (row.get("weaknesses") or [{}])[0]
+        slot = str(row.get("slot") or row.get("part") or "-")
+        item_name = str(row.get("name") or "-")
+        action_type = str(scenario.get("type") or row.get("recommendedType") or "-")
+        action = str(scenario.get("action") or row.get("recommendedAction") or "-")
+        gain = int_number(scenario.get("gain"), int_number(row.get("expectedGain")))
+        description = f"{slot} {item_name}: {action_type} - {action}"
+        if weakness.get("label"):
+            description += f" ({weakness['label']} 부족)"
+        checklist.append(
+            {
+                "rank": index,
+                "slot": slot,
+                "item": item_name,
+                "type": action_type,
+                "action": action,
+                "description": description,
+                "reason": row.get("reason") or "",
+                "expectedGain": gain,
+                "expectedGainPercent": row.get("expectedGainPercent") or 0,
+                "priorityScore": row.get("priorityScore") or 0,
+                "weakness": weakness,
+                "currentState": row.get("currentState") or "",
+            }
+        )
+    return checklist
+
+
 def build_item_upgrade_plan(
     stats: dict[str, float],
     item_response: dict[str, Any],
@@ -2063,6 +2095,7 @@ def build_item_upgrade_plan(
     rows.sort(key=lambda row: (row["priorityScore"], row["expectedGain"], -row["contribution"]), reverse=True)
     category_summary = build_upgrade_category_summary(rows)
     slot_summary = build_upgrade_slot_summary(rows)
+    repair_checklist = build_repair_checklist(rows)
     return {
         "basis": basis,
         "scoreMultiplier": round(score_multiplier, 6),
@@ -2078,7 +2111,9 @@ def build_item_upgrade_plan(
             "slot": (slot_summary[0] or {}).get("slot") if slot_summary else "",
             "category": (category_summary[0] or {}).get("type") if category_summary else "",
             "expectedGain": (slot_summary[0] or {}).get("totalGain") if slot_summary else 0,
+            "description": (repair_checklist[0] or {}).get("description") if repair_checklist else "",
         },
+        "repairChecklist": repair_checklist,
         "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
         "top": rows[:top_limit],
         "all": rows if include_all else [],

@@ -131,6 +131,10 @@ def assert_full_job_view_models() -> None:
             failures.append(f"{job}: no item repair recommendations")
         if not plan["slotSummary"]:
             failures.append(f"{job}: no slot repair summary")
+        if not plan["repairChecklist"]:
+            failures.append(f"{job}: no repair checklist")
+        elif not plan["repairChecklist"][0]["description"]:
+            failures.append(f"{job}: repair checklist has no action description")
         if not view["bossBoard"]:
             failures.append(f"{job}: no boss board")
         if view["apiDataQuality"]["requiredPresent"] != 3:
@@ -221,6 +225,10 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["slotSummary"]
     assert view["itemUpgradePlan"]["primarySlot"]["totalGain"] > 0
     assert view["itemUpgradePlan"]["repairFocus"]["slot"]
+    assert view["itemUpgradePlan"]["repairFocus"]["description"]
+    assert view["itemUpgradePlan"]["repairChecklist"]
+    assert view["itemUpgradePlan"]["repairChecklist"][0]["rank"] == 1
+    assert view["itemUpgradePlan"]["repairChecklist"][0]["expectedGain"] > 0
     assert view["calculationAudit"]["rows"]
     assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])

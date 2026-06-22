@@ -794,6 +794,16 @@ h2 {
   background: #fffaf6;
 }
 
+.upgrade-slot.priority {
+  border-color: #bfd1f4;
+  border-left-color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.upgrade-slot.priority strong {
+  color: var(--blue);
+}
+
 .upgrade-slot span,
 .upgrade-slot small,
 .upgrade-slot em {

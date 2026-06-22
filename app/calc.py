@@ -1420,6 +1420,8 @@ def available_item_presets(item_response: dict[str, Any]) -> dict[int, list[dict
     active = int_number(item_response.get("preset_no"), 0)
     if active and active not in result and item_response.get("item_equipment"):
         result[active] = item_response.get("item_equipment") or []
+    if not result and item_response.get("item_equipment"):
+        result[active or 1] = item_response.get("item_equipment") or []
     return result
 
 
@@ -1685,6 +1687,76 @@ def build_calculation_audit(
         "detailedConverted": round(float(converted.get("detailedConverted") or 0)),
         "hexaConverted": round(float(hexa_converted.get("converted") or 0)),
         "unifiedConverted": round(unified_converted),
+    }
+
+
+def build_single_metric_audit(
+    primary_metric: dict[str, Any],
+    summary_values: dict[str, Any],
+    item_upgrade_plan: dict[str, Any],
+    preset_optimization: dict[str, Any],
+    boss_board: list[dict[str, Any]],
+) -> dict[str, Any]:
+    metric_value = int_number(primary_metric.get("value"))
+    used_by = primary_metric.get("usedBy") or {}
+    boss_row = boss_board[0] if boss_board else {}
+    preset_current = preset_optimization.get("current") or {}
+
+    checks = [
+        {
+            "target": "summary.unifiedConverted380",
+            "label": "요약 대표 환산",
+            "value": int_number(summary_values.get("unifiedConverted380")),
+        },
+        {
+            "target": "summary.bossBasisConverted380",
+            "label": "보스 기준 환산",
+            "value": int_number(summary_values.get("bossBasisConverted380")),
+        },
+        {
+            "target": "primaryMetric.usedBy.bossBoard",
+            "label": "대표 지표 → 보스",
+            "value": int_number(used_by.get("bossBoard")),
+        },
+        {
+            "target": "primaryMetric.usedBy.itemUpgradePlan",
+            "label": "대표 지표 → 장비 개선",
+            "value": int_number(used_by.get("itemUpgradePlan")),
+        },
+        {
+            "target": "primaryMetric.usedBy.presetOptimization",
+            "label": "대표 지표 → 프리셋",
+            "value": int_number(used_by.get("presetOptimization")),
+        },
+        {
+            "target": "itemUpgradePlan.currentConverted",
+            "label": "장비 개선 현재값",
+            "value": int_number(item_upgrade_plan.get("currentConverted")),
+        },
+        {
+            "target": "presetOptimization.current.converted",
+            "label": "프리셋 현재값",
+            "value": int_number(preset_current.get("converted")),
+        },
+        {
+            "target": "bossBoard[0].currentConverted",
+            "label": "보스판 현재값",
+            "value": int_number(boss_row.get("currentConverted")),
+        },
+    ]
+    for row in checks:
+        row["matches"] = row["value"] == metric_value
+        row["delta"] = row["value"] - metric_value
+
+    mismatches = [row for row in checks if not row["matches"]]
+    return {
+        "metricId": primary_metric.get("id") or "unifiedConverted380",
+        "label": primary_metric.get("label") or "대표 환산(380)",
+        "basis": primary_metric.get("basis") or summary_values.get("unifiedBasis") or "",
+        "value": metric_value,
+        "allMatched": not mismatches,
+        "mismatchCount": len(mismatches),
+        "checks": checks,
     }
 
 
@@ -3194,6 +3266,41 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     attach_upgrade_reliability(item_upgrade_plan, api_quality, confidence, formula_quality)
     for preset_plan in preset_upgrade_plans:
         attach_upgrade_reliability(preset_plan.get("plan") or {}, api_quality, confidence, formula_quality)
+    summary_values = {
+        "combatPower": combat_power,
+        "converted380": round(converted["converted"]),
+        "hexaConverted380": round(hexa_converted["converted"]),
+        "unifiedConverted380": boss_basis,
+        "unifiedBasis": unified_basis,
+        "unifiedScoreMultiplier": round(unified_multiplier, 6),
+        "hexaGap380": round(hexa_converted["gap"]),
+        "hexaSkillTotalLevel": hexa_converted["skillEffect"]["totalLevel"],
+        "hexaSkillEffectPercent": round(hexa_converted["skillEffect"]["effectRate"] * 100, 2),
+        "hexaCompletionPercent": round(hexa_converted["completionRatio"] * 100, 2),
+        "hexaStatCoreCount": hexa_converted["statEffect"]["count"],
+        "hexaStatGain380": round(hexa_converted["statConvertedGain"]),
+        "hexaStatGainPercent": round(hexa_converted["statConvertedGainPercent"], 2),
+        "bossBasisConverted380": boss_basis,
+        "bestConverted380": best_converted,
+        "armorAdjustedCombatPower": round(combat_power * converted["armorFactor"]),
+        "mainStat": main_stat,
+        "subStat": converted["subStat"],
+        "attackType": attack_type,
+        "unionLevel": union.get("union_level"),
+        "unionGrade": union.get("union_grade"),
+        "equipmentCount": items["count"],
+        "starforceTotal": items["starforceTotal"],
+        "jobRuleApplied": converted["jobRuleApplied"],
+        "jobConvertedMultiplier": converted["jobConvertedMultiplier"],
+        "combatPowerJobFactor": converted["combatPowerJobFactor"],
+        "convertedModel": converted["convertedModel"],
+        "legacyConverted380": round(converted["legacyConverted"]),
+        "jobNote": converted["jobNote"],
+        "apiQualityPercent": api_quality["qualityPercent"],
+        "apiWarningCount": api_quality["warningCount"],
+        "formulaStatus": formula_quality["status"],
+        "formulaMessage": formula_quality["message"],
+    }
     primary_metric = {
         "id": "unifiedConverted380",
         "label": "대표 환산(380)",
@@ -3221,46 +3328,19 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
             "legacyConverted380": round(converted["legacyConverted"]),
         },
     }
+    single_metric_audit = build_single_metric_audit(
+        primary_metric,
+        summary_values,
+        item_upgrade_plan,
+        preset_optimization,
+        boss_board,
+    )
     return {
         "date": raw.get("date"),
         "basic": basic,
         "stats": stats,
         "primaryMetric": primary_metric,
-        "summary": {
-            "combatPower": combat_power,
-            "converted380": round(converted["converted"]),
-            "hexaConverted380": round(hexa_converted["converted"]),
-            "unifiedConverted380": boss_basis,
-            "unifiedBasis": unified_basis,
-            "unifiedScoreMultiplier": round(unified_multiplier, 6),
-            "hexaGap380": round(hexa_converted["gap"]),
-            "hexaSkillTotalLevel": hexa_converted["skillEffect"]["totalLevel"],
-            "hexaSkillEffectPercent": round(hexa_converted["skillEffect"]["effectRate"] * 100, 2),
-            "hexaCompletionPercent": round(hexa_converted["completionRatio"] * 100, 2),
-            "hexaStatCoreCount": hexa_converted["statEffect"]["count"],
-            "hexaStatGain380": round(hexa_converted["statConvertedGain"]),
-            "hexaStatGainPercent": round(hexa_converted["statConvertedGainPercent"], 2),
-            "bossBasisConverted380": boss_basis,
-            "bestConverted380": best_converted,
-            "armorAdjustedCombatPower": round(combat_power * converted["armorFactor"]),
-            "mainStat": main_stat,
-            "subStat": converted["subStat"],
-            "attackType": attack_type,
-            "unionLevel": union.get("union_level"),
-            "unionGrade": union.get("union_grade"),
-            "equipmentCount": items["count"],
-            "starforceTotal": items["starforceTotal"],
-            "jobRuleApplied": converted["jobRuleApplied"],
-            "jobConvertedMultiplier": converted["jobConvertedMultiplier"],
-            "combatPowerJobFactor": converted["combatPowerJobFactor"],
-            "convertedModel": converted["convertedModel"],
-            "legacyConverted380": round(converted["legacyConverted"]),
-            "jobNote": converted["jobNote"],
-            "apiQualityPercent": api_quality["qualityPercent"],
-            "apiWarningCount": api_quality["warningCount"],
-            "formulaStatus": formula_quality["status"],
-            "formulaMessage": formula_quality["message"],
-        },
+        "summary": summary_values,
         "convertedDetail": converted,
         "hexaConvertedDetail": hexa_converted,
         "presetOptimization": preset_optimization,
@@ -3270,6 +3350,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "formulaDiagnostics": formula_quality,
         "calculationCoverage": coverage,
         "calculationAudit": calculation_audit,
+        "singleMetricAudit": single_metric_audit,
         "itemUpgradePlan": item_upgrade_plan,
         "bossBoard": boss_board,
         "radar": radar(stats, converted),

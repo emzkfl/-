@@ -386,6 +386,7 @@ function renderCoverage(data) {
   const formula = data.formulaDiagnostics || {};
   const primary = data.primaryMetric || {};
   const confidence = primary.confidence || {};
+  const singleMetric = data.singleMetricAudit || {};
   const presetQuality = quality.presetSections || {};
   const current = coverage.current || {};
   const total = coverage.targetJobs || 0;
@@ -412,11 +413,21 @@ function renderCoverage(data) {
   }[formula.status] || "-";
   const formulaMissingPreview = (formula.missingTables || []).slice(0, 4).join(" · ");
   const confidenceReasons = (confidence.reasons || []).slice(0, 3).join(" · ");
+  const singleMetricDetail = (singleMetric.checks || [])
+    .filter((row) => !row.matches)
+    .slice(0, 3)
+    .map((row) => `${row.label || row.target || "-"} ${formatNumber(row.value || 0)}`)
+    .join(" · ");
   const coverageRows = [
     coverageRow(
       "대표 지표 신뢰도",
       `${confidence.label || "-"} · ${formatNumber(confidence.score || 0)}점`,
       confidenceReasons || primary.description || "대표 환산 신뢰도",
+    ),
+    coverageRow(
+      "단일 지표 연결",
+      `${singleMetric.allMatched ? "일치" : "점검 필요"} · ${formatNumber(singleMetric.value || primary.value || 0)}`,
+      singleMetricDetail || `${singleMetric.metricId || primary.id || "unifiedConverted380"} · ${singleMetric.basis || primary.basis || "-"}`,
     ),
     coverageRow(
       "직업 공식",

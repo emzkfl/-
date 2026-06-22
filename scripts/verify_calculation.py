@@ -33,6 +33,45 @@ def table_jobs(rows: list[dict] | tuple[dict, ...]) -> set[str]:
     return {str(row["keywords"][0]) for row in rows}
 
 
+def single_metric_failures(view: dict, context: str) -> list[str]:
+    failures: list[str] = []
+    primary = view.get("primaryMetric") or {}
+    summary = view.get("summary") or {}
+    audit = view.get("singleMetricAudit") or {}
+    expected_targets = {
+        "summary.unifiedConverted380",
+        "summary.bossBasisConverted380",
+        "primaryMetric.usedBy.bossBoard",
+        "primaryMetric.usedBy.itemUpgradePlan",
+        "primaryMetric.usedBy.presetOptimization",
+        "itemUpgradePlan.currentConverted",
+        "presetOptimization.current.converted",
+        "bossBoard[0].currentConverted",
+    }
+
+    if not audit:
+        return [f"{context}: single metric audit missing"]
+    if audit.get("metricId") != primary.get("id"):
+        failures.append(f"{context}: single metric audit id mismatch")
+    if audit.get("basis") != summary.get("unifiedBasis"):
+        failures.append(f"{context}: single metric audit basis mismatch")
+    if audit.get("value") != primary.get("value"):
+        failures.append(f"{context}: single metric audit value mismatch")
+    if audit.get("value") != summary.get("unifiedConverted380"):
+        failures.append(f"{context}: single metric audit does not match summary")
+    if not audit.get("allMatched"):
+        failures.append(f"{context}: single metric audit has mismatches {audit.get('checks')}")
+    checks = audit.get("checks") or []
+    targets = {row.get("target") for row in checks}
+    missing_targets = sorted(expected_targets - targets)
+    if missing_targets:
+        failures.append(f"{context}: single metric audit missing targets {missing_targets}")
+    for row in checks:
+        if row.get("value") != audit.get("value") or not row.get("matches"):
+            failures.append(f"{context}: single metric check failed {row}")
+    return failures
+
+
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
@@ -152,6 +191,7 @@ def assert_full_job_view_models() -> None:
             failures.append(f"{job}: boss board basis does not use primary metric")
         if primary["usedBy"]["itemUpgradePlan"] != primary["value"]:
             failures.append(f"{job}: item plan does not use primary metric")
+        failures.extend(single_metric_failures(view, job))
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
         if formula["status"] != "complete":
@@ -321,6 +361,8 @@ def assert_sample_view_model() -> None:
     assert primary["usedBy"]["itemUpgradePlan"] == primary["value"]
     assert primary["usedBy"]["presetOptimization"] == primary["value"]
     assert primary["comparison"]["hexaConverted380"] == primary["value"]
+    single_metric_problems = single_metric_failures(view, "sample 레테")
+    assert not single_metric_problems, "\n".join(single_metric_problems)
     assert view["hexaConvertedDetail"]["skillEffect"]["totalLevel"] == 50
     assert view["hexaConvertedDetail"]["completionRatio"] < 1
     assert view["hexaConvertedDetail"]["statConvertedGain"] > 0
@@ -362,6 +404,8 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["reliability"]["reasons"]
     assert view["calculationAudit"]["rows"]
     assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
+    assert view["singleMetricAudit"]["allMatched"]
+    assert view["singleMetricAudit"]["value"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])
     assert any(row["label"] == "보정 표본" for row in view["calculationAudit"]["rows"])
     assert any(row["label"] == "최종 상세 배율" for row in view["calculationAudit"]["rows"])
@@ -466,6 +510,7 @@ def assert_preset_metric_basis() -> None:
     view = build_view_model(raw)
     assert view["presetOptimization"]["basis"] == view["summary"]["unifiedBasis"]
     assert view["presetOptimization"]["current"]["converted"] == view["summary"]["unifiedConverted380"]
+    assert not single_metric_failures(view, "preset 레테")
     current_combo = next(row for row in view["presetViews"]["combinations"] if row["itemPreset"] == 1)
     assert current_combo["converted"] == view["summary"]["unifiedConverted380"]
     assert view["apiDataQuality"]["presetSections"]["itemPresetCount"] >= 2

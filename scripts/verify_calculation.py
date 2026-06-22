@@ -123,6 +123,8 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     summary = plan.get("repairEvidence") or {}
     audit = plan.get("repairAudit") or {}
     weakness_summary = plan.get("weaknessSummary") or []
+    roadmap = plan.get("repairRoadmap") or []
+    roadmap_summary = plan.get("roadmapSummary") or {}
 
     if not summary:
         failures.append(f"{context}: repair evidence summary missing")
@@ -175,6 +177,31 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
             failures.append(f"{context}/{row.get('label')}: weakness priority score missing")
         if not row.get("bestItem"):
             failures.append(f"{context}/{row.get('label')}: weakness best item missing")
+    if rows and not roadmap:
+        failures.append(f"{context}: repair roadmap missing")
+    if roadmap:
+        if roadmap_summary.get("stepCount") != len(roadmap):
+            failures.append(f"{context}: roadmap summary step count mismatch")
+        if roadmap_summary.get("basis") != plan.get("basis"):
+            failures.append(f"{context}: roadmap summary basis mismatch")
+        previous_projected = plan.get("currentConverted") or 0
+        previous_cumulative = 0
+        for index, step in enumerate(roadmap, 1):
+            source = rows[index - 1] if index - 1 < len(rows) else {}
+            if step.get("rank") != index:
+                failures.append(f"{context}: roadmap rank mismatch {step}")
+            if step.get("item") != source.get("name"):
+                failures.append(f"{context}: roadmap item mismatch {step}")
+            if step.get("expectedGain") != source.get("expectedGain"):
+                failures.append(f"{context}: roadmap expected gain mismatch {step}")
+            if step.get("cumulativeGain", 0) < previous_cumulative:
+                failures.append(f"{context}: roadmap cumulative gain decreased {step}")
+            if step.get("projectedConverted", 0) < previous_projected:
+                failures.append(f"{context}: roadmap projected converted decreased {step}")
+            previous_cumulative = step.get("cumulativeGain", previous_cumulative)
+            previous_projected = step.get("projectedConverted", previous_projected)
+        if roadmap_summary.get("projectedConverted") != roadmap[-1].get("projectedConverted"):
+            failures.append(f"{context}: roadmap summary projected converted mismatch")
     if not audit:
         failures.append(f"{context}: repair audit missing")
     else:
@@ -610,6 +637,9 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["repairChecklist"]
     assert view["itemUpgradePlan"]["repairChecklist"][0]["rank"] == 1
     assert view["itemUpgradePlan"]["repairChecklist"][0]["expectedGain"] > 0
+    assert view["itemUpgradePlan"]["repairRoadmap"]
+    assert view["itemUpgradePlan"]["repairRoadmap"][0]["projectedConverted"] > view["itemUpgradePlan"]["currentConverted"]
+    assert view["itemUpgradePlan"]["roadmapSummary"]["projectedConverted"] >= view["itemUpgradePlan"]["repairRoadmap"][0]["projectedConverted"]
     assert view["itemUpgradePlan"]["reliability"]["status"] in {"caution", "ready"}
     assert view["itemUpgradePlan"]["reliability"]["score"] == view["primaryMetric"]["confidence"]["score"]
     assert view["itemUpgradePlan"]["reliability"]["reasons"]

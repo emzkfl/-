@@ -489,18 +489,23 @@ function renderUpgradePlan(data) {
   const efficiency = plan.primaryEfficiency || {};
   const reliability = plan.reliability || {};
   const repairAudit = plan.repairAudit || {};
+  const roadmap = plan.repairRoadmap || [];
+  const roadmapSummary = plan.roadmapSummary || {};
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
   const efficiencyText = efficiency.action ? ` · 효율 ${efficiency.action} +${formatNumber(efficiency.gain || 0)}` : "";
   const reliabilityText = reliability.label ? ` · 추천 ${reliability.label}` : "";
   upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${reliabilityText}${efficiencyText}${focusText}`;
   const checklistCards = (plan.repairChecklist || [])
     .slice(0, 3)
-    .map((row) => `<article class="upgrade-slot priority">
+    .map((row) => {
+      const step = roadmap.find((candidate) => Number(candidate.rank) === Number(row.rank)) || {};
+      return `<article class="upgrade-slot priority">
       <span>${formatNumber(row.rank || 0)}순위 · ${escapeHtml(row.slot || "-")}</span>
       <strong>+${formatNumber(row.expectedGain || 0)}</strong>
       <small>${escapeHtml(row.type || "-")} · ${escapeHtml(row.action || "-")}</small>
-      <em>${escapeHtml(row.item || "-")}${row.weakness?.label ? ` · ${escapeHtml(row.weakness.label)}` : ""}</em>
-    </article>`)
+      <em>${escapeHtml(row.item || "-")}${row.weakness?.label ? ` · ${escapeHtml(row.weakness.label)}` : ""}${step.projectedConverted ? ` · 예상 ${formatNumber(step.projectedConverted)}` : ""}</em>
+    </article>`;
+    })
     .join("");
   const reliabilityCard = reliability.label
     ? `<article class="upgrade-slot priority">
@@ -516,6 +521,13 @@ function renderUpgradePlan(data) {
       <small>${escapeHtml(repairAudit.topItem || "-")} · +${formatNumber(repairAudit.topExpectedGain || 0)}</small>
     </article>`
     : "";
+  const roadmapCard = roadmapSummary.stepCount
+    ? `<article class="upgrade-slot priority">
+      <span>개선 로드맵 · ${formatNumber(roadmapSummary.stepCount || 0)}단계</span>
+      <strong>${formatNumber(roadmapSummary.projectedConverted || 0)}</strong>
+      <small>누적 +${formatNumber(roadmapSummary.cumulativeGain || 0)} · ${formatNumber(roadmapSummary.projectedGainPercent || 0, 2)}%</small>
+    </article>`
+    : "";
   const slotCards = (plan.slotSummary || [])
     .slice(0, 4)
     .map((slot) => `<article class="upgrade-slot">
@@ -525,7 +537,7 @@ function renderUpgradePlan(data) {
       <em>${escapeHtml(slot.bestItem || "-")}${slot.topWeakness ? ` · ${escapeHtml(slot.topWeakness)}` : ""}</em>
     </article>`)
     .join("");
-  upgradeSlotList.innerHTML = auditCard + reliabilityCard + checklistCards + slotCards;
+  upgradeSlotList.innerHTML = roadmapCard + auditCard + reliabilityCard + checklistCards + slotCards;
   const efficiencyCards = (plan.efficiencyProfile || [])
     .slice(0, 4)
     .map((row) => `<article class="upgrade-category">

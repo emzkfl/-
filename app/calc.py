@@ -2630,6 +2630,60 @@ def build_repair_checklist(rows: list[dict[str, Any]], limit: int = 5) -> list[d
     return checklist
 
 
+def build_repair_roadmap(
+    rows: list[dict[str, Any]],
+    current_converted: float,
+    basis: str,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    roadmap = []
+    cumulative_gain = 0.0
+    for index, row in enumerate(rows[:limit], 1):
+        scenario = (row.get("scenarios") or [{}])[0]
+        gain = float(scenario.get("gain") or row.get("expectedGain") or 0.0)
+        cumulative_gain += gain
+        projected = current_converted + cumulative_gain
+        weakness = (row.get("weaknesses") or [{}])[0]
+        roadmap.append(
+            {
+                "rank": index,
+                "basis": basis,
+                "estimateMode": "additive_expected_gain",
+                "slot": row.get("slot") or row.get("part") or "-",
+                "item": row.get("name") or "-",
+                "type": scenario.get("type") or row.get("recommendedType") or "-",
+                "action": scenario.get("action") or row.get("recommendedAction") or "-",
+                "expectedGain": round(gain),
+                "cumulativeGain": round(cumulative_gain),
+                "projectedConverted": round(projected),
+                "projectedGainPercent": round(cumulative_gain / current_converted * 100, 2) if current_converted else 0.0,
+                "weakness": weakness,
+            }
+        )
+    return roadmap
+
+
+def build_roadmap_summary(
+    roadmap: list[dict[str, Any]],
+    current_converted: float,
+    basis: str,
+) -> dict[str, Any]:
+    last = roadmap[-1] if roadmap else {}
+    cumulative_gain = int_number(last.get("cumulativeGain")) if last else 0
+    projected = int_number(last.get("projectedConverted"), int_number(current_converted)) if last else int_number(current_converted)
+    return {
+        "basis": basis,
+        "estimateMode": "additive_expected_gain",
+        "stepCount": len(roadmap),
+        "currentConverted": round(current_converted),
+        "cumulativeGain": cumulative_gain,
+        "projectedConverted": projected,
+        "projectedGainPercent": round(cumulative_gain / current_converted * 100, 2) if current_converted else 0.0,
+        "firstStep": roadmap[0] if roadmap else None,
+        "lastStep": last or None,
+    }
+
+
 def build_recommendation_evidence(
     item: dict[str, Any],
     basis: str,
@@ -2994,6 +3048,8 @@ def build_item_upgrade_plan(
     slot_summary = build_upgrade_slot_summary(rows)
     weakness_summary = build_weakness_summary(rows)
     repair_checklist = build_repair_checklist(rows)
+    repair_roadmap = build_repair_roadmap(rows, current_converted, basis)
+    roadmap_summary = build_roadmap_summary(repair_roadmap, current_converted, basis)
     repair_evidence = build_repair_evidence_summary(rows, basis, main_stat, attack_type, stat_targets)
     repair_audit = build_repair_consistency_audit(rows, repair_checklist, repair_evidence, basis)
     efficiency_profile = build_upgrade_efficiency_profile(
@@ -3030,6 +3086,8 @@ def build_item_upgrade_plan(
             "description": (repair_checklist[0] or {}).get("description") if repair_checklist else "",
         },
         "repairChecklist": repair_checklist,
+        "repairRoadmap": repair_roadmap,
+        "roadmapSummary": roadmap_summary,
         "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
         "top": rows[:top_limit],
         "all": rows if include_all else [],

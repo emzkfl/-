@@ -382,6 +382,7 @@ function renderExtra(data) {
 function renderCoverage(data) {
   const coverage = data.calculationCoverage || {};
   const audit = data.calculationAudit || {};
+  const formulaIntegrity = data.formulaIntegrityAudit || {};
   const quality = data.apiDataQuality || {};
   const formula = data.formulaDiagnostics || {};
   const primary = data.primaryMetric || {};
@@ -430,6 +431,11 @@ function renderCoverage(data) {
       "단일 지표 연결",
       `${singleMetric.allMatched ? "일치" : "점검 필요"} · ${formatNumber(singleMetric.value || primary.value || 0)}`,
       singleMetricDetail || `${singleMetric.metricId || primary.id || "unifiedConverted380"} · ${singleMetric.basis || primary.basis || "-"}`,
+    ),
+    coverageRow(
+      "계산식 재검산",
+      `${formulaIntegrity.allPassed ? "일치" : "점검 필요"} · ${formatNumber(formulaIntegrity.checkCount || 0)}개`,
+      formulaIntegrity.failedCount ? `${formatNumber(formulaIntegrity.failedCount)}개 실패` : "주스탯·공격력·damage_factor·HEXA 환산 일치",
     ),
     coverageRow(
       "직업 공식",

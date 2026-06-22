@@ -182,6 +182,44 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     return failures
 
 
+def formula_integrity_failures(view: dict, context: str) -> list[str]:
+    failures: list[str] = []
+    audit = view.get("formulaIntegrityAudit") or {}
+    expected_labels = {
+        "주스탯 공식",
+        "공격력 공식",
+        "주스탯 계수",
+        "보공+데미지 합성",
+        "일반 데미지 계수",
+        "숙련도 평균",
+        "damage_factor",
+        "raw 환산",
+        "상세 환산",
+        "HEXA 환산",
+        "대표 환산",
+    }
+    checks = audit.get("checks") or []
+    labels = {row.get("label") for row in checks}
+    if not audit:
+        return [f"{context}: formula integrity audit missing"]
+    if audit.get("metric") != "unifiedConverted380":
+        failures.append(f"{context}: formula integrity metric mismatch")
+    if audit.get("checkCount") != len(checks):
+        failures.append(f"{context}: formula integrity check count mismatch")
+    if labels != expected_labels:
+        failures.append(f"{context}: formula integrity labels mismatch missing={sorted(expected_labels - labels)} extra={sorted(labels - expected_labels)}")
+    if not audit.get("allPassed"):
+        failures.append(f"{context}: formula integrity failed {checks}")
+    if audit.get("failedCount") != 0:
+        failures.append(f"{context}: formula integrity failed count {audit.get('failedCount')}")
+    for row in checks:
+        if not row.get("passed"):
+            failures.append(f"{context}: formula check failed {row}")
+        if "actual" not in row or "expected" not in row or "delta" not in row:
+            failures.append(f"{context}: formula check lacks values {row}")
+    return failures
+
+
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
@@ -305,6 +343,7 @@ def assert_full_job_view_models() -> None:
         if primary["usedBy"]["itemUpgradePlan"] != primary["value"]:
             failures.append(f"{job}: item plan does not use primary metric")
         failures.extend(single_metric_failures(view, job))
+        failures.extend(formula_integrity_failures(view, job))
         failures.extend(formula_manifest_failures(manifest, job, job))
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
@@ -527,6 +566,8 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["reliability"]["reasons"]
     assert view["calculationAudit"]["rows"]
     assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
+    assert not formula_integrity_failures(view, "sample 레테")
+    assert view["formulaIntegrityAudit"]["allPassed"]
     assert view["singleMetricAudit"]["allMatched"]
     assert view["singleMetricAudit"]["value"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])

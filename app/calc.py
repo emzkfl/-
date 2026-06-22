@@ -1767,6 +1767,110 @@ def build_calculation_audit(
     }
 
 
+def close_enough(actual: float, expected: float, tolerance: float | None = None) -> bool:
+    limit = tolerance if tolerance is not None else max(0.01, abs(expected) * 0.0000001)
+    return abs(actual - expected) <= limit
+
+
+def formula_check(
+    label: str,
+    actual: float,
+    expected: float,
+    detail: str = "",
+    tolerance: float | None = None,
+) -> dict[str, Any]:
+    limit = tolerance if tolerance is not None else max(0.01, abs(expected) * 0.0000001)
+    return {
+        "label": label,
+        "passed": close_enough(actual, expected, limit),
+        "actual": round(actual, 6),
+        "expected": round(expected, 6),
+        "delta": round(actual - expected, 6),
+        "tolerance": round(limit, 6),
+        "detail": detail,
+    }
+
+
+def base_stat_factor_from_formula(converted: dict[str, Any]) -> float:
+    base_stat = converted.get("baseStatFormula") or {}
+    weights = base_stat.get("weights") or {}
+    main_key = str(converted.get("mainStat") or "")
+    main = base_stat.get("main") or {}
+    subs = base_stat.get("sub") or {}
+    total = 0.0
+    for key, weight in weights.items():
+        if key == main_key:
+            coefficient = main
+        else:
+            coefficient = subs.get(key) or {}
+        total += float((coefficient or {}).get("value") or 0.0) * float(weight or 0.0)
+    return total
+
+
+def build_formula_integrity_audit(
+    converted: dict[str, Any],
+    hexa_converted: dict[str, Any],
+    unified_converted: float,
+) -> dict[str, Any]:
+    base_stat = converted.get("baseStatFormula") or {}
+    main = base_stat.get("main") or {}
+    attack = converted.get("attackFormula") or {}
+    damage = converted.get("damageFormula") or {}
+
+    main_expected = stat_formula(
+        float(main.get("base") or 0.0),
+        float(main.get("percent") or 0.0),
+        float(main.get("static") or 0.0),
+    )
+    attack_expected = float(attack.get("base") or 0.0) * (1 + float(attack.get("percent") or 0.0) / 100)
+    base_stat_expected = base_stat_factor_from_formula(converted)
+    boss_total_expected = float(damage.get("bossDamage") or 0.0) + float(damage.get("damage") or 0.0) * float(
+        damage.get("regularDamageBossWeight") or 0.0
+    )
+    general_damage_expected = (1 + boss_total_expected / 100) * (1 + float(damage.get("finalDamage") or 0.0) / 100)
+    mastery_average_expected = (1 + float(damage.get("mastery") or 0.0)) / 2
+    damage_factor_expected = (
+        float(damage.get("generalDamageFactor") or 0.0)
+        * float(damage.get("armorFactor") or 0.0)
+        * float(damage.get("criticalFactor") or 0.0)
+        * float(converted.get("baseStatFactor") or 0.0)
+        * float(converted.get("attack") or 0.0)
+        * float(damage.get("elementalFactor") or 0.0)
+        * float(damage.get("weaponConstant") or 0.0)
+        * 0.01
+        * float(damage.get("masteryAverage") or 0.0)
+    )
+    raw_converted_expected = math.sqrt(max(0.0, float(converted.get("damageFactor") or 0.0))) * CONVERTED_STAT_SCALE
+    detailed_expected = raw_converted_expected * float(converted.get("jobConvertedMultiplier") or 0.0)
+    hexa_expected = min(
+        float(converted.get("converted") or 0.0),
+        float(converted.get("converted") or 0.0) * float(hexa_converted.get("completionRatio") or 0.0),
+    )
+    unified_expected = round(float(hexa_converted.get("converted") or 0.0))
+
+    checks = [
+        formula_check("주스탯 공식", float(main.get("value") or 0.0), main_expected, "기본 * (1 + % / 100) + % 미적용"),
+        formula_check("공격력 공식", float(attack.get("value") or 0.0), attack_expected, "공격력 * (1 + 공격력% / 100)"),
+        formula_check("주스탯 계수", float(converted.get("baseStatFactor") or 0.0), base_stat_expected, "직업별 주/부스탯 가중합"),
+        formula_check("보공+데미지 합성", float(damage.get("bossDamageTotal") or 0.0), boss_total_expected, "보공 + 데미지 가중치"),
+        formula_check("일반 데미지 계수", float(damage.get("generalDamageFactor") or 0.0), general_damage_expected, "(1 + 보공/데미지) * (1 + 최종뎀)"),
+        formula_check("숙련도 평균", float(damage.get("masteryAverage") or 0.0), mastery_average_expected, "(1 + 숙련도) / 2", 0.000001),
+        formula_check("damage_factor", float(converted.get("damageFactor") or 0.0), damage_factor_expected, "세부 계수 전체 곱"),
+        formula_check("raw 환산", float(converted.get("rawConverted") or 0.0), raw_converted_expected, "sqrt(damage_factor) * 4"),
+        formula_check("상세 환산", float(converted.get("detailedConverted") or 0.0), detailed_expected, "raw 환산 * 직업 보정 배율"),
+        formula_check("HEXA 환산", float(hexa_converted.get("converted") or 0.0), hexa_expected, "현재 환산 * HEXA 완성도"),
+        formula_check("대표 환산", round(unified_converted), unified_expected, "round(HEXA 환산)", 0.0),
+    ]
+    failed = [row for row in checks if not row["passed"]]
+    return {
+        "metric": "unifiedConverted380",
+        "allPassed": not failed,
+        "checkCount": len(checks),
+        "failedCount": len(failed),
+        "checks": checks,
+    }
+
+
 def build_single_metric_audit(
     primary_metric: dict[str, Any],
     summary_values: dict[str, Any],
@@ -3491,6 +3595,11 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         unified_converted,
         unified_multiplier,
     )
+    formula_integrity_audit = build_formula_integrity_audit(
+        converted,
+        hexa_converted,
+        unified_converted,
+    )
 
     union = raw.get("union") or {}
     api_quality = api_data_quality(raw)
@@ -3583,6 +3692,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "jobFormulaManifest": formula_manifest,
         "calculationCoverage": coverage,
         "calculationAudit": calculation_audit,
+        "formulaIntegrityAudit": formula_integrity_audit,
         "singleMetricAudit": single_metric_audit,
         "itemUpgradePlan": item_upgrade_plan,
         "bossBoard": boss_board,

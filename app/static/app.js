@@ -505,6 +505,22 @@ function optionLine(label, value, suffix = "") {
   return `<span>${escapeHtml(label)} ${formatNumber(value, Number(value) % 1 ? 1 : 0)}${suffix}</span>`;
 }
 
+function repairKey(slot, name) {
+  return `${slot || ""}::${name || ""}`;
+}
+
+function selectedRepairLookup(data) {
+  const plan = selectedUpgradePlan(data);
+  const rows = (plan.all?.length ? plan.all : plan.top) || [];
+  const lookup = new Map();
+  rows.forEach((row, index) => {
+    const repair = { ...row, rank: index + 1 };
+    lookup.set(repairKey(row.slot, row.name), repair);
+    lookup.set(repairKey(row.part, row.name), repair);
+  });
+  return lookup;
+}
+
 function renderUpgradePlan(data) {
   const plan = selectedUpgradePlan(data);
   const primary = data.primaryMetric || {};
@@ -641,10 +657,12 @@ function renderUpgradePlan(data) {
 function renderItems(data) {
   const summary = data.summary || {};
   const items = selectedEquipment(data);
+  const repairs = selectedRepairLookup(data);
   const starforceTotal = items.reduce((sum, item) => sum + Number(item.starforce || 0), 0);
   equipmentSummary.textContent = `${items.length || summary.equipmentCount || 0}개 · 스타포스 ${formatNumber(starforceTotal || summary.starforceTotal || 0)}`;
   itemList.innerHTML = items
     .map((item) => {
+      const repair = repairs.get(repairKey(item.slot, item.name)) || repairs.get(repairKey(item.part, item.name));
       const lines = [
         optionLine(data.summary.mainStat, item.mainOption),
         optionLine(data.summary.attackType, item.attackOption),
@@ -658,7 +676,14 @@ function renderItems(data) {
         .slice(0, 4)
         .map((line) => `<em>${escapeHtml(line)}</em>`)
         .join("");
-      return `<article class="item-card">
+      const repairBadge = repair
+        ? `<div class="item-repair">
+            <strong>${formatNumber(repair.rank)}순위 개선</strong>
+            <span>+${formatNumber(repair.expectedGain || 0)} · 개선 후 ${formatNumber(repair.metricAfter || 0)}</span>
+            <small>${escapeHtml(repair.recommendedType || "-")} · ${escapeHtml(repair.recommendedAction || "-")}</small>
+          </div>`
+        : "";
+      return `<article class="item-card${repair ? " needs-repair" : ""}">
         <img src="${escapeHtml(item.icon)}" alt="" />
         <div class="item-body">
           <div class="item-top">
@@ -667,6 +692,7 @@ function renderItems(data) {
           </div>
           <div class="item-options">${lines || "<span>옵션 정보 없음</span>"}</div>
           <div class="potentials">${potentials}</div>
+          ${repairBadge}
         </div>
       </article>`;
     })

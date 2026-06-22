@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT))
 
 INDEX = ROOT / "app" / "static" / "index.html"
 APP_JS = ROOT / "app" / "static" / "app.js"
+STYLES = ROOT / "app" / "static" / "styles.css"
 
 
 REQUIRED_INDEX_MARKERS = {
@@ -75,10 +76,12 @@ def function_body(source: str, function_name: str, next_function_name: str) -> s
 def assert_frontend_repair_output() -> None:
     index = INDEX.read_text(encoding="utf-8")
     app_js = APP_JS.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
     render_upgrade = function_body(app_js, "renderUpgradePlan", "renderItems")
+    render_items = function_body(app_js, "renderItems", "point")
     failures: list[str] = []
 
-    for path, text in ((INDEX, index), (APP_JS, app_js)):
+    for path, text in ((INDEX, index), (APP_JS, app_js), (STYLES, styles)):
         if "\ufffd" in text:
             failures.append(f"{path}: contains replacement characters")
 
@@ -100,6 +103,18 @@ def assert_frontend_repair_output() -> None:
         failures.append("renderUpgradePlan: item recommendation list is not populated")
     if "plan.currentConverted" not in render_upgrade or "primary.value" not in render_upgrade:
         failures.append("renderUpgradePlan: current representative metric is not shown")
+    for marker in (
+        "selectedRepairLookup(data)",
+        "repairKey(item.slot, item.name)",
+        "repair.expectedGain",
+        "repair.metricAfter",
+        "item-repair",
+        "needs-repair",
+    ):
+        if marker not in render_items:
+            failures.append(f"renderItems: equipment repair marker missing {marker!r}")
+    if ".item-card.needs-repair" not in styles or ".item-repair" not in styles:
+        failures.append("styles.css: equipment repair badge styles missing")
 
     if failures:
         raise AssertionError("\n".join(failures))

@@ -1,0 +1,387 @@
+{
+  "source": {
+    "name": "NamuWiki MapleStory boss monster pages",
+    "url": "https://namu.wiki/w/메이플스토리/보스%20몬스터",
+    "retrievedAt": "2026-06-22",
+    "notes": "Only objective stat fields used by the app are stored here: level, HP, defense, time limit, force requirement, and source URL. Shared HP phases are counted once; reward boxes, story-only modes, and summons are excluded."
+  },
+  "bossRules": [
+    {
+      "name": "하드 유피테르",
+      "party": 241000,
+      "solo": 520000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 810,
+      "symbolBoss": "유피테르",
+      "level": 295,
+      "timeLimitMinutes": 20,
+      "hpRatio": 0.6667,
+      "totalHp": 31921930000000000,
+      "hpParts": [
+        {"phase": "통상 모드 공유 HP", "hp": 31921930000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/유피테르(메이플스토리)/보스%20몬스터"
+    },
+    {
+      "name": "노말 유피테르",
+      "party": 188000,
+      "solo": 430000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 810,
+      "symbolBoss": "유피테르",
+      "level": 295,
+      "timeLimitMinutes": 20,
+      "hpRatio": 0.6667,
+      "totalHp": 6974135000000000,
+      "hpParts": [
+        {"phase": "통상 모드 공유 HP", "hp": 6974135000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/유피테르(메이플스토리)/보스%20몬스터"
+    },
+    {
+      "name": "하드 발드릭스",
+      "party": 89000,
+      "solo": 170000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 700,
+      "symbolBoss": "발드릭스",
+      "level": 290,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 12631485300000000,
+      "hpParts": [
+        {"phase": "1페이즈 공유 HP", "hp": 3623692800000000},
+        {"phase": "2페이즈 공유 HP", "hp": 3854991000000000},
+        {"phase": "3페이즈", "hp": 5152801500000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/발드릭스/보스%20몬스터"
+    },
+    {
+      "name": "익스트림 대적자",
+      "party": 292000,
+      "solo": 620000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 460,
+      "symbolBoss": "대적자",
+      "level": 290,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 32180000000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 9655000000000000},
+        {"phase": "2페이즈", "hp": 9655000000000000},
+        {"phase": "3페이즈", "hp": 12870000000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/최초의%20대적자"
+    },
+    {
+      "name": "하드 림보",
+      "party": 293000,
+      "solo": 600000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 500,
+      "symbolBoss": "림보",
+      "level": 285,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 12432000000000000,
+      "hpParts": [
+        {"phase": "1페이즈 공유 HP", "hp": 3774000000000000},
+        {"phase": "2-1페이즈", "hp": 1887000000000000},
+        {"phase": "2-2페이즈", "hp": 1887000000000000},
+        {"phase": "3페이즈 공유 HP", "hp": 4884000000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/림보(메이플스토리)/보스%20몬스터"
+    },
+    {
+      "name": "노말 림보",
+      "party": 247000,
+      "solo": 480000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 500,
+      "symbolBoss": "림보",
+      "level": 285,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 6472000000000000,
+      "hpParts": [
+        {"phase": "1페이즈 공유 HP", "hp": 1941600000000000},
+        {"phase": "2-1페이즈", "hp": 970800000000000},
+        {"phase": "2-2페이즈", "hp": 970800000000000},
+        {"phase": "3페이즈 공유 HP", "hp": 2588800000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/림보(메이플스토리)/보스%20몬스터",
+      "sourceNote": "The page has one normal-mode digit row inconsistent with its Korean number label; the Korean label 2588조 8000억 is used for shared phase 3."
+    },
+    {
+      "name": "익스트림 카링",
+      "party": 203000,
+      "solo": 360000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 480,
+      "symbolBoss": "카링",
+      "level": 285,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 47073000000000000,
+      "hpParts": [
+        {"phase": "1페이즈 궁기", "hp": 6018000000000000},
+        {"phase": "1페이즈 도올", "hp": 6018000000000000},
+        {"phase": "1페이즈 혼돈", "hp": 6018000000000000},
+        {"phase": "2페이즈 카링", "hp": 6930000000000000},
+        {"phase": "3페이즈 궁기", "hp": 5197500000000000},
+        {"phase": "3페이즈 도올", "hp": 5197500000000000},
+        {"phase": "3페이즈 혼돈", "hp": 5197500000000000},
+        {"phase": "3페이즈 폭주한 카링", "hp": 6496500000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/카링/보스%20몬스터"
+    },
+    {
+      "name": "익스트림 칼로스",
+      "party": 193000,
+      "solo": 340000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 440,
+      "symbolBoss": "칼로스",
+      "level": 285,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 21296000000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 5798000000000000},
+        {"phase": "2페이즈", "hp": 15498000000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/감시자%20칼로스"
+    },
+    {
+      "name": "하드 카링",
+      "party": 176000,
+      "solo": 300000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 350,
+      "symbolBoss": "카링",
+      "level": 285,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 10267790000000000,
+      "hpParts": [
+        {"phase": "1페이즈 궁기", "hp": 920000000000000},
+        {"phase": "1페이즈 도올", "hp": 920000000000000},
+        {"phase": "1페이즈 혼돈", "hp": 920000000000000},
+        {"phase": "2페이즈 카링", "hp": 1404000000000000},
+        {"phase": "3페이즈 궁기", "hp": 1406790000000000},
+        {"phase": "3페이즈 도올", "hp": 1406790000000000},
+        {"phase": "3페이즈 혼돈", "hp": 1406790000000000},
+        {"phase": "3페이즈 폭주한 카링", "hp": 1883420000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/카링/보스%20몬스터"
+    },
+    {
+      "name": "카오스 칼로스",
+      "party": 151000,
+      "solo": 250000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 330,
+      "symbolBoss": "칼로스",
+      "level": 285,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 5082000000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 1066000000000000},
+        {"phase": "2페이즈", "hp": 4016000000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/감시자%20칼로스"
+    },
+    {
+      "name": "노말 카링",
+      "party": 161000,
+      "solo": 220000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 330,
+      "symbolBoss": "카링",
+      "level": 285,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 3325160000000000,
+      "hpParts": [
+        {"phase": "1페이즈 궁기", "hp": 399000000000000},
+        {"phase": "1페이즈 도올", "hp": 399000000000000},
+        {"phase": "1페이즈 혼돈", "hp": 399000000000000},
+        {"phase": "2페이즈 카링", "hp": 468000000000000},
+        {"phase": "3페이즈 궁기", "hp": 399360000000000},
+        {"phase": "3페이즈 도올", "hp": 399360000000000},
+        {"phase": "3페이즈 혼돈", "hp": 399360000000000},
+        {"phase": "3페이즈 폭주한 카링", "hp": 462080000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/카링/보스%20몬스터"
+    },
+    {
+      "name": "하드 세렌",
+      "party": 105000,
+      "solo": 170000,
+      "defense": 380,
+      "forceType": "authentic",
+      "forceRequired": 200,
+      "symbolBoss": "세렌",
+      "level": 275,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 483000000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 126000000000000},
+        {"phase": "2페이즈 공유 HP", "hp": 357000000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/선택받은%20세렌"
+    },
+    {
+      "name": "검은 마법사",
+      "party": 84000,
+      "solo": 145000,
+      "defense": 300,
+      "forceType": "arcane",
+      "forceRequired": 1320,
+      "level": 275,
+      "timeLimitMinutes": 60,
+      "hpRatio": 2.0,
+      "totalHp": 472500000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 22113000000000},
+        {"phase": "2페이즈", "hp": 40540500000000},
+        {"phase": "3페이즈", "hp": 55282500000000},
+        {"phase": "4페이즈", "hp": 354564000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "name": "하드 진힐라",
+      "party": 68000,
+      "solo": 116000,
+      "defense": 300,
+      "forceType": "arcane",
+      "forceRequired": 900,
+      "level": 250,
+      "timeLimitMinutes": 20,
+      "hpRatio": 0.6667,
+      "totalHp": 122451000000000,
+      "hpParts": [
+        {"phase": "공유 HP", "hp": 122451000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/진%20힐라"
+    },
+    {
+      "name": "하드 듄켈",
+      "party": 65000,
+      "solo": 110000,
+      "defense": 300,
+      "forceType": "arcane",
+      "forceRequired": 850,
+      "level": 255,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 157500000000000,
+      "hpParts": [
+        {"phase": "단일 페이즈", "hp": 157500000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/듄켈/보스%20몬스터"
+    },
+    {
+      "name": "카오스 더스크",
+      "party": 63000,
+      "solo": 105000,
+      "defense": 300,
+      "forceType": "arcane",
+      "forceRequired": 730,
+      "level": 255,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 127050000000000,
+      "hpParts": [
+        {"phase": "단일 페이즈", "hp": 127050000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/더스크"
+    },
+    {
+      "name": "하드 윌",
+      "party": 54000,
+      "solo": 93000,
+      "defense": 300,
+      "forceType": "arcane",
+      "forceRequired": 760,
+      "level": 250,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 126000000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 42000000000000},
+        {"phase": "2페이즈", "hp": 31500000000000},
+        {"phase": "3페이즈", "hp": 52500000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/윌(메이플스토리)/보스%20몬스터"
+    },
+    {
+      "name": "하드 루시드",
+      "party": 52000,
+      "solo": 90000,
+      "defense": 300,
+      "forceType": "arcane",
+      "forceRequired": 360,
+      "level": 230,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 117600000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 50800000000000},
+        {"phase": "2페이즈", "hp": 54000000000000},
+        {"phase": "3페이즈", "hp": 12800000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/루시드(메이플스토리)/보스%20몬스터"
+    },
+    {
+      "name": "하드 데미안",
+      "party": 39000,
+      "solo": 70000,
+      "defense": 300,
+      "forceType": "",
+      "forceRequired": 0,
+      "level": 210,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 36000000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 25200000000000},
+        {"phase": "2페이즈", "hp": 10800000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/데미안(메이플스토리)/보스%20몬스터"
+    },
+    {
+      "name": "하드 스우",
+      "party": 38000,
+      "solo": 68000,
+      "defense": 300,
+      "forceType": "",
+      "forceRequired": 0,
+      "level": 210,
+      "timeLimitMinutes": 30,
+      "hpRatio": 1.0,
+      "totalHp": 33285000000000,
+      "hpParts": [
+        {"phase": "1페이즈", "hp": 9985500000000},
+        {"phase": "2페이즈", "hp": 9985500000000},
+        {"phase": "3페이즈", "hp": 13314000000000}
+      ],
+      "sourceUrl": "https://namu.wiki/w/스우/보스%20몬스터"
+    }
+  ]
+}

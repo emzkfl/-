@@ -6,7 +6,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from calc import BOSS_RULES, BOSS_FORCE_SOURCE, calculation_coverage, job_formula_manifest
+from calc import BOSS_RULES, BOSS_RULE_DATA, BOSS_FORCE_SOURCE, calculation_coverage, job_formula_manifest
 from nexon import NexonApiError, default_date, fetch_character
 
 
@@ -53,6 +53,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "jobs": manifest["jobs"],
                     "bossRuleCount": len(BOSS_RULES),
                     "bossRules": BOSS_RULES,
+                    "bossRuleSource": BOSS_RULE_DATA.get("source", {}),
                     "coverage": {
                         "targetJobs": coverage["targetJobs"],
                         "coveredDetailJobs": coverage["coveredDetailJobs"],
@@ -68,6 +69,7 @@ class Handler(SimpleHTTPRequestHandler):
                         "damageFactor": "(1 + (보공 + 데미지) / 100) * (1 + 최종뎀 / 100) * 방어율계수 * 크리계수 * 주스탯계수 * 공격력계수 * 속성계수 * 무기상수 * 0.01 * 숙련도평균",
                         "representativeMetric": "round(HEXA 보정 환산 380)",
                         "bossEffectiveMetric": "대표 환산 * sqrt(방어율보정 * 포스보정 * 보스별 심볼 보너스)",
+                        "bossRequirement": "기준 요구 환산 * sqrt(hpRatio * 30 / 20)",
                         "bossRatio": "보스별 유효 환산 / 요구 환산 * 100",
                     },
                     "bossForceSource": BOSS_FORCE_SOURCE,

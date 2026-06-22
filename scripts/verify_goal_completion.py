@@ -108,6 +108,14 @@ def assert_boss_rules_are_adjusted() -> None:
             failures.append(f"{name}: force requirement missing")
         if float(row.get("party") or 0) <= 0 or float(row.get("solo") or 0) <= 0:
             failures.append(f"{name}: party/solo requirement missing")
+        if int(row.get("totalHp") or 0) <= 0:
+            failures.append(f"{name}: total HP missing")
+        if float(row.get("timeLimitMinutes") or 0) <= 0:
+            failures.append(f"{name}: time limit missing")
+        if float(row.get("hpRatio") or 0) <= 0:
+            failures.append(f"{name}: HP ratio missing")
+        if not str(row.get("sourceUrl") or "").startswith("https://namu.wiki/w/"):
+            failures.append(f"{name}: NamuWiki source URL missing")
 
     if failures:
         raise AssertionError("\n".join(failures))

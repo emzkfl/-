@@ -72,6 +72,19 @@ function koreanPower(value) {
   return formatNumber(number);
 }
 
+function koreanBossHp(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "-";
+  const gyeong = Math.floor(number / 10000000000000000);
+  const jo = Math.floor((number % 10000000000000000) / 1000000000000);
+  const eok = Math.floor((number % 1000000000000) / 100000000);
+  const parts = [];
+  if (gyeong) parts.push(`${formatNumber(gyeong)}경`);
+  if (jo) parts.push(`${formatNumber(jo)}조`);
+  if (!gyeong && eok) parts.push(`${formatNumber(eok)}억`);
+  return parts.length ? parts.join(" ") : formatNumber(number);
+}
+
 function setStatus(message, tone = "idle") {
   statusEl.textContent = message;
   statusEl.dataset.tone = tone;
@@ -286,6 +299,9 @@ function renderBosses(data) {
         const symbolBonus = adjustment.symbolBossDamageMultiplier && adjustment.symbolBossDamageMultiplier !== 1
           ? ` · 심볼 보스뎀 ${formatNumber(adjustment.symbolBossDamageMultiplier * 100, 1)}%`
           : "";
+        const hpText = boss.totalHp ? `체력 ${koreanBossHp(boss.totalHp)}` : "체력 미확인";
+        const timeText = boss.timeLimitMinutes ? `제한 ${formatNumber(boss.timeLimitMinutes)}분` : "제한시간 미확인";
+        const sourceText = boss.sourceUrl ? "나무위키 수치" : "내장 수치";
         return `<article class="boss-card" data-tone="${escapeHtml(boss.tone)}">
         <div class="boss-card-head">
           <strong>${escapeHtml(boss.name)}</strong>
@@ -311,6 +327,7 @@ function renderBosses(data) {
         </div>
         <small>20분 기준 · 파티 ${formatNumber(boss.partyRatio, 1)}% · 솔플 ${formatNumber(boss.soloRatio, 1)}% · ${escapeHtml(boss.gapLabel || "")}</small>
         <small>방어율 ${formatNumber(armor.bossDefense || boss.defense || 0)}% · 방무 ${formatNumber(armor.ignoredDefense || 0, 2)}% · 포스 ${escapeHtml(forceText)}${symbolBonus}</small>
+        <small>${escapeHtml(hpText)} · ${escapeHtml(timeText)} · ${escapeHtml(sourceText)}</small>
       </article>`;
       },
     )

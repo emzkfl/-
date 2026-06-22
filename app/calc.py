@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 import re
+import json
+from pathlib import Path
 from typing import Any
 
 
@@ -489,7 +491,8 @@ JOB_DETAIL_RULES = [
 
 KMS_JOB_NAMES = tuple(str(rule["keywords"][0]) for rule in JOB_DETAIL_RULES)
 
-BOSS_RULES = [
+BOSS_RULES_PATH = Path(__file__).resolve().parents[1] / "data" / "boss-rules.json"
+FALLBACK_BOSS_RULES = [
     {"name": "하드 유피테르", "party": 188000, "solo": 430000, "defense": 380, "forceType": "authentic", "forceRequired": 810, "symbolBoss": "유피테르"},
     {"name": "노말 유피테르", "party": 241000, "solo": 520000, "defense": 380, "forceType": "authentic", "forceRequired": 810, "symbolBoss": "유피테르"},
     {"name": "하드 발드릭스", "party": 89000, "solo": 170000, "defense": 380, "forceType": "authentic", "forceRequired": 700, "symbolBoss": "발드릭스"},
@@ -511,10 +514,32 @@ BOSS_RULES = [
     {"name": "하드 데미안", "party": 39000, "solo": 70000, "defense": 300, "forceType": "", "forceRequired": 0},
     {"name": "하드 스우", "party": 38000, "solo": 68000, "defense": 300, "forceType": "", "forceRequired": 0},
 ]
+
+
+def load_boss_rule_data() -> dict[str, Any]:
+    try:
+        data = json.loads(BOSS_RULES_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "source": {"name": "fallback", "retrievedAt": "", "url": ""},
+            "bossRules": FALLBACK_BOSS_RULES,
+        }
+
+    rules = data.get("bossRules")
+    if not isinstance(rules, list) or not rules:
+        return {
+            "source": {"name": "fallback", "retrievedAt": "", "url": ""},
+            "bossRules": FALLBACK_BOSS_RULES,
+        }
+    return data
+
+
+BOSS_RULE_DATA = load_boss_rule_data()
+BOSS_RULES = BOSS_RULE_DATA["bossRules"]
 BOSS_RULE_BASE_MINUTES = 30
 BOSS_RULE_TARGET_MINUTES = 20
 BOSS_RULE_DEFAULT_HP_RATIO = BOSS_RULE_TARGET_MINUTES / BOSS_RULE_BASE_MINUTES
-BOSS_FORCE_SOURCE = "Nexon force damage guide + 2026 boss force table"
+BOSS_FORCE_SOURCE = "Nexon force damage guide + NamuWiki boss stat tables"
 AUTHENTIC_SYMBOL_BOSS_MARKERS = (
     ("세르니움", "세렌"),
     ("아르크스", "칼로스"),
@@ -1938,7 +1963,7 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
     failed_rows = []
     for row in boss_board:
         hp_ratio = float(row.get("hpRatio") or BOSS_RULE_DEFAULT_HP_RATIO)
-        adjustment = float(row.get("timeAdjustment") or round(boss_time_adjustment(hp_ratio), 4))
+        adjustment = boss_time_adjustment(hp_ratio)
         party_required = round(float(row.get("basePartyRequired") or 0.0) * adjustment)
         solo_required = round(float(row.get("baseSoloRequired") or 0.0) * adjustment)
         effective_value = int_number(row.get("effectiveConverted"), metric_value)
@@ -1979,7 +2004,7 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
     checks = [
         {"id": "ruleCount", "label": "보스 룰 수", "passed": count_ok, "detail": f"{len(boss_board)} / {len(BOSS_RULES)}"},
         {"id": "singleMetric", "label": "보스 기준 단일 지표", "passed": current_ok, "detail": f"대표 환산 {metric_value:,}"},
-        {"id": "timeAdjustment", "label": "30분→20분 보정", "passed": time_ok, "detail": "sqrt(체력비율 * 기준시간 / 목표시간)"},
+        {"id": "timeAdjustment", "label": "제한시간/체력 보정", "passed": time_ok, "detail": "sqrt(hpRatio * 기준시간 / 목표시간)"},
         {"id": "requirement", "label": "요구 환산", "passed": requirement_ok, "detail": "기준 요구 환산 * 시간/체력 보정"},
         {"id": "ratio", "label": "가능 비율", "passed": ratio_ok, "detail": "보스별 유효 환산 / 요구 환산 * 100"},
         {"id": "possibleFlag", "label": "가능 여부", "passed": possible_ok, "detail": "보스별 유효 환산이 파티/솔플 100% 이상이면 가능"},

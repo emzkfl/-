@@ -116,7 +116,7 @@ def boss_board_failures(view: dict, context: str) -> list[str]:
 
     for row in board:
         hp_ratio = float(row.get("hpRatio") or BOSS_RULE_DEFAULT_HP_RATIO)
-        adjustment = float(row.get("timeAdjustment") or round(boss_time_adjustment(hp_ratio), 4))
+        adjustment = boss_time_adjustment(hp_ratio)
         party_required = round(float(row.get("basePartyRequired") or 0.0) * adjustment)
         solo_required = round(float(row.get("baseSoloRequired") or 0.0) * adjustment)
         effective_value = int(round(float(row.get("effectiveConverted") or metric_value)))

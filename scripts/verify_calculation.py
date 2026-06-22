@@ -6,7 +6,59 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.calc import KMS_JOB_NAMES, build_view_model, calculation_coverage  # noqa: E402
+from app.calc import (  # noqa: E402
+    CALIBRATION_EVIDENCE,
+    COMBAT_CONVERTED_JOB_FACTORS,
+    JOB_CONVERTED_MULTIPLIERS,
+    JOB_DETAIL_RULES,
+    KMS_JOB_NAMES,
+    SPECIAL_COMBAT_CONVERTED_MODELS,
+    build_view_model,
+    calculation_coverage,
+)
+
+
+def table_jobs(rows: list[dict] | tuple[dict, ...]) -> set[str]:
+    return {str(row["keywords"][0]) for row in rows}
+
+
+def assert_job_table_integrity() -> None:
+    failures: list[str] = []
+    job_set = set(KMS_JOB_NAMES)
+    if len(KMS_JOB_NAMES) != len(job_set):
+        failures.append("KMS_JOB_NAMES has duplicate entries")
+    if len(JOB_DETAIL_RULES) != len(KMS_JOB_NAMES):
+        failures.append(f"detail rule count drift {len(JOB_DETAIL_RULES)} != {len(KMS_JOB_NAMES)}")
+    if table_jobs(JOB_DETAIL_RULES) != job_set:
+        failures.append("detail rule job set differs from KMS_JOB_NAMES")
+    if table_jobs(JOB_CONVERTED_MULTIPLIERS) != job_set:
+        missing = sorted(job_set - table_jobs(JOB_CONVERTED_MULTIPLIERS))
+        extra = sorted(table_jobs(JOB_CONVERTED_MULTIPLIERS) - job_set)
+        failures.append(f"converted multiplier job set mismatch missing={missing} extra={extra}")
+    if set(CALIBRATION_EVIDENCE) != job_set:
+        missing = sorted(job_set - set(CALIBRATION_EVIDENCE))
+        extra = sorted(set(CALIBRATION_EVIDENCE) - job_set)
+        failures.append(f"calibration evidence job set mismatch missing={missing} extra={extra}")
+
+    combat_jobs = table_jobs(COMBAT_CONVERTED_JOB_FACTORS) | table_jobs(SPECIAL_COMBAT_CONVERTED_MODELS)
+    if combat_jobs != job_set:
+        missing = sorted(job_set - combat_jobs)
+        extra = sorted(combat_jobs - job_set)
+        failures.append(f"combat model job set mismatch missing={missing} extra={extra}")
+
+    for rule in JOB_DETAIL_RULES:
+        job = str(rule["keywords"][0])
+        if not rule.get("mainStat"):
+            failures.append(f"{job}: mainStat missing")
+        if not rule.get("attackType"):
+            failures.append(f"{job}: attackType missing")
+        if float(rule.get("weaponConstant") or 0) <= 0:
+            failures.append(f"{job}: weaponConstant invalid")
+        if float(rule.get("mastery") or 0) <= 0:
+            failures.append(f"{job}: mastery invalid")
+
+    if failures:
+        raise AssertionError("\n".join(failures))
 
 
 def assert_full_job_coverage() -> None:
@@ -224,6 +276,7 @@ def assert_preset_metric_basis() -> None:
 
 
 def main() -> None:
+    assert_job_table_integrity()
     assert_full_job_coverage()
     assert_sample_view_model()
     assert_special_item_targets()

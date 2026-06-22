@@ -163,6 +163,12 @@ def assert_full_job_view_models() -> None:
             failures.append(f"{job}: item plan current score mismatch")
         if not plan["top"]:
             failures.append(f"{job}: no item repair recommendations")
+        if not plan["efficiencyProfile"]:
+            failures.append(f"{job}: no upgrade efficiency profile")
+        elif plan["primaryEfficiency"] != plan["efficiencyProfile"][0]:
+            failures.append(f"{job}: primary efficiency does not match top efficiency")
+        elif plan["primaryEfficiency"]["gain"] <= 0:
+            failures.append(f"{job}: primary efficiency has no gain")
         if not plan["slotSummary"]:
             failures.append(f"{job}: no slot repair summary")
         if not plan["repairChecklist"]:
@@ -304,6 +310,10 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"]
     assert view["itemUpgradePlan"]["top"][0]["priorityScore"] > 0
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
+    assert view["itemUpgradePlan"]["efficiencyProfile"]
+    assert view["itemUpgradePlan"]["primaryEfficiency"] == view["itemUpgradePlan"]["efficiencyProfile"][0]
+    assert view["itemUpgradePlan"]["primaryEfficiency"]["gain"] > 0
+    assert view["itemUpgradePlan"]["primaryEfficiency"]["gainPercent"] > 0
     assert view["itemUpgradePlan"]["categorySummary"]
     assert view["itemUpgradePlan"]["primaryCategory"]["totalGain"] > 0
     assert view["itemUpgradePlan"]["slotSummary"]
@@ -388,6 +398,8 @@ def assert_special_item_targets() -> None:
     demon_plan = demon["itemUpgradePlan"]
     assert demon["calculationCoverage"]["current"]["statMode"] == "demon_avenger"
     assert demon_plan["upgradeTargets"] == ["최대 HP"]
+    assert demon_plan["efficiencyProfile"]
+    assert any("HP" in row["action"] for row in demon_plan["efficiencyProfile"])
     assert any("HP" in row["recommendedAction"] for row in demon_plan["top"])
     assert any("HP" in weakness["label"] for row in demon_plan["top"] for weakness in row["weaknesses"])
     assert any(("추옵" in weakness["label"] or "작" in weakness["label"]) for row in demon_plan["top"] for weakness in row["weaknesses"])
@@ -398,6 +410,8 @@ def assert_special_item_targets() -> None:
     xenon_plan = xenon["itemUpgradePlan"]
     assert xenon["calculationCoverage"]["current"]["statMode"] == "xenon"
     assert xenon_plan["upgradeTargets"] == ["STR", "DEX", "LUK"]
+    assert xenon_plan["efficiencyProfile"]
+    assert any("STR/DEX/LUK" in row["action"] for row in xenon_plan["efficiencyProfile"])
     assert any("STR/DEX/LUK" in row["recommendedAction"] for row in xenon_plan["top"])
     assert any("STR/DEX/LUK" in weakness["label"] for row in xenon_plan["top"] for weakness in row["weaknesses"])
     assert any(("추옵" in scenario["type"] or "작" in scenario["type"]) for row in xenon_plan["top"] for scenario in row["scenarios"])

@@ -2145,6 +2145,140 @@ def build_repair_checklist(rows: list[dict[str, Any]], limit: int = 5) -> list[d
     return checklist
 
 
+def build_upgrade_efficiency_profile(
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    character_class: str,
+    current_converted: float,
+    main_stat: str,
+    attack_type: str,
+    stat_targets: list[str],
+    score_multiplier: float = 1.0,
+) -> list[dict[str, Any]]:
+    stat_unit = 1000.0 if stat_targets == [K_HP] else 10.0
+    entries = [
+        {
+            "type": "주스탯",
+            "action": f"{target_label(stat_targets)} +{stat_unit:g}",
+            "gain": gain_multi_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "flat",
+                stat_targets,
+                stat_unit,
+                score_multiplier,
+            ),
+            "unit": stat_unit,
+        },
+        {
+            "type": "주스탯%",
+            "action": f"{target_label(stat_targets)} +1%",
+            "gain": gain_multi_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "percent",
+                stat_targets,
+                1.0,
+                score_multiplier,
+            ),
+            "unit": 1.0,
+        },
+        {
+            "type": "공격 계수",
+            "action": f"{attack_type} +1",
+            "gain": gain_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "flat",
+                attack_type,
+                1.0,
+                score_multiplier,
+            ),
+            "unit": 1.0,
+        },
+        {
+            "type": "공격%",
+            "action": f"{attack_type} +1%",
+            "gain": gain_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "percent",
+                attack_type,
+                1.0,
+                score_multiplier,
+            ),
+            "unit": 1.0,
+        },
+        {
+            "type": "보스",
+            "action": "보공 +1%",
+            "gain": gain_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "combat",
+                K_BOSS,
+                1.0,
+                score_multiplier,
+            ),
+            "unit": 1.0,
+        },
+        {
+            "type": "최종뎀",
+            "action": "최종 데미지 +1%",
+            "gain": gain_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "combat",
+                K_FINAL,
+                1.0,
+                score_multiplier,
+            ),
+            "unit": 1.0,
+        },
+    ]
+
+    starforce_delta = empty_profile()
+    for key in stat_targets:
+        add_to_profile(starforce_delta, "flat", key, 210.0 if key == K_HP else 7.0)
+    add_to_profile(starforce_delta, "flat", attack_type, 2.0)
+    entries.append(
+        {
+            "type": "스타포스",
+            "action": f"1성 기준: {starforce_target_bonus_label(stat_targets)}, {attack_type} +2",
+            "gain": item_upgrade_gain(stats, item_response, character_class, current_converted, starforce_delta, score_multiplier),
+            "unit": 1.0,
+        }
+    )
+
+    result = []
+    for entry in entries:
+        gain = float(entry.get("gain") or 0.0)
+        if gain <= 0:
+            continue
+        result.append(
+            {
+                "type": entry["type"],
+                "action": entry["action"],
+                "gain": round(gain),
+                "gainPercent": round(gain / current_converted * 100, 3) if current_converted else 0.0,
+                "unit": entry["unit"],
+            }
+        )
+    return sorted(result, key=lambda row: row["gain"], reverse=True)
+
+
 def build_item_upgrade_plan(
     stats: dict[str, float],
     item_response: dict[str, Any],
@@ -2222,6 +2356,16 @@ def build_item_upgrade_plan(
     category_summary = build_upgrade_category_summary(rows)
     slot_summary = build_upgrade_slot_summary(rows)
     repair_checklist = build_repair_checklist(rows)
+    efficiency_profile = build_upgrade_efficiency_profile(
+        stats,
+        item_response,
+        character_class,
+        current_converted,
+        main_stat,
+        attack_type,
+        stat_targets,
+        score_multiplier,
+    )
     return {
         "basis": basis,
         "scoreMultiplier": round(score_multiplier, 6),
@@ -2231,6 +2375,8 @@ def build_item_upgrade_plan(
         "upgradeTargets": stat_targets,
         "categorySummary": category_summary,
         "primaryCategory": category_summary[0] if category_summary else None,
+        "efficiencyProfile": efficiency_profile,
+        "primaryEfficiency": efficiency_profile[0] if efficiency_profile else None,
         "slotSummary": slot_summary,
         "primarySlot": slot_summary[0] if slot_summary else None,
         "repairFocus": {

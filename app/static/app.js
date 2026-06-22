@@ -452,8 +452,10 @@ function renderUpgradePlan(data) {
   const targets = (plan.upgradeTargets || []).join("/");
   const presetLabel = selectedPresets.itemPreset ? ` · 장비 ${selectedPresets.itemPreset}/어빌 ${selectedPresets.abilityPreset || "-"}/하이퍼 ${selectedPresets.hyperPreset || "-"}` : "";
   const focus = plan.repairFocus || {};
+  const efficiency = plan.primaryEfficiency || {};
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
-  upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${focusText}`;
+  const efficiencyText = efficiency.action ? ` · 효율 ${efficiency.action} +${formatNumber(efficiency.gain || 0)}` : "";
+  upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${efficiencyText}${focusText}`;
   const checklistCards = (plan.repairChecklist || [])
     .slice(0, 3)
     .map((row) => `<article class="upgrade-slot priority">
@@ -473,7 +475,15 @@ function renderUpgradePlan(data) {
     </article>`)
     .join("");
   upgradeSlotList.innerHTML = checklistCards + slotCards;
-  upgradeCategoryList.innerHTML = (plan.categorySummary || [])
+  const efficiencyCards = (plan.efficiencyProfile || [])
+    .slice(0, 4)
+    .map((row) => `<article class="upgrade-category">
+      <span>${escapeHtml(row.type)}</span>
+      <strong>+${formatNumber(row.gain)}</strong>
+      <small>${escapeHtml(row.action || "-")} · ${formatNumber(row.gainPercent || 0, 3)}%</small>
+    </article>`)
+    .join("");
+  const categoryCards = (plan.categorySummary || [])
     .slice(0, 5)
     .map((category) => `<article class="upgrade-category">
       <span>${escapeHtml(category.type)}</span>
@@ -481,6 +491,7 @@ function renderUpgradePlan(data) {
       <small>${formatNumber(category.sharePercent, 1)}% · ${escapeHtml(category.bestItem || "-")} · ${escapeHtml(category.bestAction || "-")}</small>
     </article>`)
     .join("");
+  upgradeCategoryList.innerHTML = efficiencyCards + categoryCards;
   if (!rows.length) {
     upgradeList.innerHTML = `<article class="upgrade-card empty-card">
       <strong>추천할 개선 항목이 없습니다</strong>

@@ -107,6 +107,9 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
     assert view["itemUpgradePlan"]["categorySummary"]
     assert view["itemUpgradePlan"]["primaryCategory"]["totalGain"] > 0
+    assert view["itemUpgradePlan"]["slotSummary"]
+    assert view["itemUpgradePlan"]["primarySlot"]["totalGain"] > 0
+    assert view["itemUpgradePlan"]["repairFocus"]["slot"]
     assert view["calculationAudit"]["rows"]
     assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])
@@ -186,6 +189,7 @@ def assert_special_item_targets() -> None:
     assert any("HP" in weakness["label"] for row in demon_plan["top"] for weakness in row["weaknesses"])
     assert any(("추옵" in weakness["label"] or "작" in weakness["label"]) for row in demon_plan["top"] for weakness in row["weaknesses"])
     assert demon_plan["categorySummary"]
+    assert demon_plan["slotSummary"]
 
     xenon = build_view_model(sample_raw("제논", "LUK", "공격력", "STR : +3%"))
     xenon_plan = xenon["itemUpgradePlan"]
@@ -195,6 +199,7 @@ def assert_special_item_targets() -> None:
     assert any("STR/DEX/LUK" in weakness["label"] for row in xenon_plan["top"] for weakness in row["weaknesses"])
     assert any(("추옵" in scenario["type"] or "작" in scenario["type"]) for row in xenon_plan["top"] for scenario in row["scenarios"])
     assert xenon_plan["categorySummary"]
+    assert xenon_plan["slotSummary"]
 
 
 def assert_preset_metric_basis() -> None:

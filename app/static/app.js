@@ -31,6 +31,7 @@ const hyperList = document.querySelector("#hyper-list");
 const extraList = document.querySelector("#extra-list");
 const coverageList = document.querySelector("#coverage-list");
 const upgradeSummary = document.querySelector("#upgrade-summary");
+const upgradeSlotList = document.querySelector("#upgrade-slot-list");
 const upgradeCategoryList = document.querySelector("#upgrade-category-list");
 const upgradeList = document.querySelector("#upgrade-list");
 const equipmentSummary = document.querySelector("#equipment-summary");
@@ -388,7 +389,18 @@ function renderUpgradePlan(data) {
   const plan = data.itemUpgradePlan || {};
   const rows = plan.top || [];
   const targets = (plan.upgradeTargets || []).join("/");
-  upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${targets ? ` · ${targets}` : ""}`;
+  const focus = plan.repairFocus || {};
+  const focusText = focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
+  upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${targets ? ` · ${targets}` : ""}${focusText}`;
+  upgradeSlotList.innerHTML = (plan.slotSummary || [])
+    .slice(0, 4)
+    .map((slot) => `<article class="upgrade-slot">
+      <span>${escapeHtml(slot.slot)}</span>
+      <strong>+${formatNumber(slot.totalGain)}</strong>
+      <small>${formatNumber(slot.sharePercent, 1)}% · ${escapeHtml(slot.bestType || "-")} · ${escapeHtml(slot.bestAction || "-")}</small>
+      <em>${escapeHtml(slot.bestItem || "-")}${slot.topWeakness ? ` · ${escapeHtml(slot.topWeakness)}` : ""}</em>
+    </article>`)
+    .join("");
   upgradeCategoryList.innerHTML = (plan.categorySummary || [])
     .slice(0, 5)
     .map((category) => `<article class="upgrade-category">

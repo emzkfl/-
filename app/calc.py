@@ -1899,6 +1899,58 @@ def build_upgrade_category_summary(rows: list[dict[str, Any]]) -> list[dict[str,
     return sorted(result, key=lambda row: (row["totalGain"], row["bestGain"]), reverse=True)
 
 
+def build_upgrade_slot_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    slots: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        gain = float(row.get("expectedGain") or 0.0)
+        if gain <= 0:
+            continue
+        slot = str(row.get("slot") or row.get("part") or "기타")
+        bucket = slots.setdefault(
+            slot,
+            {
+                "slot": slot,
+                "totalGain": 0.0,
+                "candidateCount": 0,
+                "bestGain": 0.0,
+                "bestItem": "",
+                "bestType": "",
+                "bestAction": "",
+                "topWeakness": "",
+                "priorityScore": 0.0,
+            },
+        )
+        bucket["totalGain"] += gain
+        bucket["priorityScore"] += float(row.get("priorityScore") or 0.0)
+        bucket["candidateCount"] += 1
+        if gain > bucket["bestGain"]:
+            bucket["bestGain"] = gain
+            bucket["bestItem"] = row.get("name") or "-"
+            bucket["bestType"] = row.get("recommendedType") or "-"
+            bucket["bestAction"] = row.get("recommendedAction") or "-"
+            weaknesses = row.get("weaknesses") or []
+            bucket["topWeakness"] = weaknesses[0]["label"] if weaknesses else ""
+
+    total_gain = sum(row["totalGain"] for row in slots.values())
+    result = []
+    for row in slots.values():
+        result.append(
+            {
+                "slot": row["slot"],
+                "totalGain": round(row["totalGain"]),
+                "sharePercent": round(row["totalGain"] / total_gain * 100, 1) if total_gain else 0.0,
+                "candidateCount": row["candidateCount"],
+                "bestGain": round(row["bestGain"]),
+                "bestItem": row["bestItem"],
+                "bestType": row["bestType"],
+                "bestAction": row["bestAction"],
+                "topWeakness": row["topWeakness"],
+                "priorityScore": round(row["priorityScore"]),
+            }
+        )
+    return sorted(result, key=lambda row: (row["priorityScore"], row["totalGain"], row["bestGain"]), reverse=True)
+
+
 def build_item_upgrade_plan(
     stats: dict[str, float],
     item_response: dict[str, Any],
@@ -1972,6 +2024,7 @@ def build_item_upgrade_plan(
 
     rows.sort(key=lambda row: (row["priorityScore"], row["expectedGain"], -row["contribution"]), reverse=True)
     category_summary = build_upgrade_category_summary(rows)
+    slot_summary = build_upgrade_slot_summary(rows)
     return {
         "basis": basis,
         "scoreMultiplier": round(score_multiplier, 6),
@@ -1981,6 +2034,13 @@ def build_item_upgrade_plan(
         "upgradeTargets": stat_targets,
         "categorySummary": category_summary,
         "primaryCategory": category_summary[0] if category_summary else None,
+        "slotSummary": slot_summary,
+        "primarySlot": slot_summary[0] if slot_summary else None,
+        "repairFocus": {
+            "slot": (slot_summary[0] or {}).get("slot") if slot_summary else "",
+            "category": (category_summary[0] or {}).get("type") if category_summary else "",
+            "expectedGain": (slot_summary[0] or {}).get("totalGain") if slot_summary else 0,
+        },
         "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
         "top": rows[:8],
         "all": rows,

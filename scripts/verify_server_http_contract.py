@@ -60,6 +60,12 @@ def assert_server_http_contract() -> None:
                 "canJudgeBosses": True,
                 "canRecommendItems": True,
             },
+            "unifiedRepairAudit": {
+                "version": "unified_repair_audit_v1",
+                "metric": "unifiedConverted380",
+                "metricValue": 123456,
+                "allPassed": True,
+            },
             "summary": {"unifiedConverted380": 123456},
             "itemUpgradePlan": {
                 "currentConverted": 123456,
@@ -99,6 +105,10 @@ def assert_server_http_contract() -> None:
             raise AssertionError(f"character response goal contract metric mismatch: {body}")
         if body.get("goalContract", {}).get("canJudgeBosses") is not True:
             raise AssertionError(f"character response goal contract boss flag missing: {body}")
+        if body.get("unifiedRepairAudit", {}).get("version") != "unified_repair_audit_v1":
+            raise AssertionError(f"character response unified repair audit missing: {body}")
+        if body.get("unifiedRepairAudit", {}).get("metricValue") != body.get("primaryMetric", {}).get("value"):
+            raise AssertionError(f"character response unified repair audit metric mismatch: {body}")
         if body.get("summary", {}).get("unifiedConverted380") != body.get("primaryMetric", {}).get("value"):
             raise AssertionError(f"character response single metric mismatch: {body}")
         if body.get("itemUpgradePlan", {}).get("currentConverted") != body.get("primaryMetric", {}).get("value"):

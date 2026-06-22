@@ -46,8 +46,12 @@ def assert_frontend_single_metric() -> None:
         failures.append("app.js: single-metric usage explanation missing")
     if "data.goalContract" not in app_js:
         failures.append("app.js: goal contract response is not consumed")
+    if "data.unifiedRepairAudit" not in app_js:
+        failures.append("app.js: unified repair audit response is not consumed")
     if "data.bossBoardAudit" not in app_js:
         failures.append("app.js: boss board audit response is not consumed")
+    if "단일 지표 감사" not in app_js:
+        failures.append("app.js: unified repair audit status is not visible in coverage")
     if "목표 계약" not in app_js:
         failures.append("app.js: goal contract status is not visible in coverage")
     if "보스 판정" not in app_js:
@@ -75,6 +79,8 @@ def assert_frontend_single_metric() -> None:
         failures.append("renderCoverage: goal contract metric value is not rendered")
     if "bossAudit.allPassed" not in render_coverage or "bossAudit.ratioFormula" not in render_coverage:
         failures.append("renderCoverage: boss board audit status and ratio formula are not rendered")
+    if "unifiedAudit.label" not in render_coverage or "unifiedAudit.failedCheckIds" not in render_coverage:
+        failures.append("renderCoverage: unified repair audit status is not rendered")
 
     if failures:
         raise AssertionError("\n".join(failures))

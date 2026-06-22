@@ -2372,6 +2372,113 @@ def build_goal_contract(
     }
 
 
+def build_unified_repair_audit(
+    primary_metric: dict[str, Any],
+    summary_values: dict[str, Any],
+    single_metric_audit: dict[str, Any],
+    formula_quality: dict[str, Any],
+    input_source_audit: dict[str, Any],
+    boss_board_audit: dict[str, Any],
+    item_upgrade_plan: dict[str, Any],
+    formula_manifest: dict[str, Any],
+    goal_contract: dict[str, Any],
+    items: dict[str, Any],
+) -> dict[str, Any]:
+    metric_value = int_number(primary_metric.get("value"))
+    repair_audit = item_upgrade_plan.get("repairAudit") or {}
+    roadmap_summary = item_upgrade_plan.get("roadmapSummary") or {}
+    top_repair = (item_upgrade_plan.get("top") or [{}])[0]
+    current_formula = formula_manifest.get("current") or {}
+    checks = [
+        {
+            "id": "apiToCalculation",
+            "label": "API 입력 연결",
+            "passed": bool(input_source_audit.get("allRequiredPresent")),
+            "detail": f"{int_number(input_source_audit.get('usageCount'))}개 사용처 · {input_source_audit.get('status') or '-'}",
+        },
+        {
+            "id": "kmsFormulaCatalog",
+            "label": "KMS 직업 공식",
+            "passed": int_number(formula_manifest.get("jobCount")) >= len(KMS_JOB_NAMES)
+            and formula_quality.get("status") == "complete"
+            and bool(current_formula.get("matched")),
+            "detail": f"{current_formula.get('job') or formula_quality.get('matchedJob') or '-'} · {int_number(formula_manifest.get('jobCount'))}직업",
+        },
+        {
+            "id": "singleMetricFlow",
+            "label": "단일 지표 흐름",
+            "passed": bool(single_metric_audit.get("allMatched"))
+            and metric_value == int_number(summary_values.get("unifiedConverted380"))
+            and metric_value == int_number(item_upgrade_plan.get("currentConverted"))
+            and metric_value == int_number(boss_board_audit.get("currentConverted")),
+            "detail": f"{primary_metric.get('id') or 'unifiedConverted380'} · {metric_value:,}",
+        },
+        {
+            "id": "bossJudgment",
+            "label": "보스 판정",
+            "passed": bool(boss_board_audit.get("allPassed")) and int_number(boss_board_audit.get("ruleCount")) == len(BOSS_RULES),
+            "detail": f"{int_number(boss_board_audit.get('ruleCount'))}개 · {boss_board_audit.get('ratioFormula') or '-'}",
+        },
+        {
+            "id": "itemRepairTargets",
+            "label": "아이템 개선 대상",
+            "passed": bool(repair_audit.get("allPassed"))
+            and bool(top_repair.get("name"))
+            and int_number(items.get("repairTargetCount")) > 0,
+            "detail": f"{top_repair.get('slot') or '-'} · {top_repair.get('name') or '-'} · +{int_number(top_repair.get('expectedGain')):,}",
+        },
+        {
+            "id": "repairRoadmapBossImpact",
+            "label": "누적 보스 영향",
+            "passed": int_number(roadmap_summary.get("stepCount")) > 0
+            and bool((roadmap_summary.get("bossImpact") or {}).get("label"))
+            and int_number(roadmap_summary.get("projectedConverted")) >= metric_value,
+            "detail": (roadmap_summary.get("bossImpact") or {}).get("label") or "-",
+        },
+        {
+            "id": "goalContract",
+            "label": "목표 계약",
+            "passed": bool(goal_contract.get("canCompareUsers"))
+            and bool(goal_contract.get("canJudgeBosses"))
+            and bool(goal_contract.get("canRecommendItems")),
+            "detail": goal_contract.get("label") or goal_contract.get("status") or "-",
+        },
+    ]
+    failed = [row for row in checks if not row["passed"]]
+    return {
+        "version": "unified_repair_audit_v1",
+        "status": "ready" if not failed else "diagnostic",
+        "label": "단일 지표 감사 완료" if not failed else "단일 지표 감사 필요",
+        "metric": primary_metric.get("id") or "unifiedConverted380",
+        "metricValue": metric_value,
+        "basis": primary_metric.get("basis") or summary_values.get("unifiedBasis") or "",
+        "allPassed": not failed,
+        "passedCount": len(checks) - len(failed),
+        "checkCount": len(checks),
+        "failedCount": len(failed),
+        "failedCheckIds": [row["id"] for row in failed],
+        "checks": checks,
+        "fieldPaths": {
+            "apiInput": "inputSourceAudit",
+            "jobFormula": "jobFormulaManifest.current",
+            "singleMetric": "singleMetricAudit",
+            "bossJudgment": "bossBoardAudit",
+            "itemRepair": "itemUpgradePlan.top[0]",
+            "repairRoadmap": "itemUpgradePlan.roadmapSummary",
+        },
+        "repairSummary": {
+            "targetCount": int_number(items.get("repairTargetCount")),
+            "topSlot": top_repair.get("slot") or "",
+            "topItem": top_repair.get("name") or "",
+            "topAction": top_repair.get("recommendedAction") or "",
+            "topGain": int_number(top_repair.get("expectedGain")),
+            "projectedConverted": int_number(roadmap_summary.get("projectedConverted")),
+            "cumulativeGain": int_number(roadmap_summary.get("cumulativeGain")),
+            "bossImpact": (roadmap_summary.get("bossImpact") or {}).get("label") or "",
+        },
+    }
+
+
 def potential_lines(item: dict[str, Any], additional: bool = False) -> list[str]:
     prefix = "additional_potential_option" if additional else "potential_option"
     return [str(item.get(f"{prefix}_{idx}") or "") for idx in (1, 2, 3) if item.get(f"{prefix}_{idx}")]
@@ -4366,11 +4473,24 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         item_upgrade_plan,
         formula_manifest,
     )
+    unified_repair_audit = build_unified_repair_audit(
+        primary_metric,
+        summary_values,
+        single_metric_audit,
+        formula_quality,
+        input_source_audit,
+        boss_board_audit,
+        item_upgrade_plan,
+        formula_manifest,
+        goal_contract,
+        items,
+    )
     return {
         "date": raw.get("date"),
         "basic": basic,
         "stats": stats,
         "goalContract": goal_contract,
+        "unifiedRepairAudit": unified_repair_audit,
         "primaryMetric": primary_metric,
         "summary": summary_values,
         "convertedDetail": converted,

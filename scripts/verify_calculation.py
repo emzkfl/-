@@ -502,6 +502,89 @@ def readiness_failures(view: dict, context: str, expected_statuses: set[str] | N
     return failures
 
 
+def unified_repair_audit_failures(view: dict, context: str) -> list[str]:
+    failures: list[str] = []
+    audit = view.get("unifiedRepairAudit") or {}
+    primary = view.get("primaryMetric") or {}
+    summary = view.get("summary") or {}
+    plan = view.get("itemUpgradePlan") or {}
+    boss_audit = view.get("bossBoardAudit") or {}
+    input_audit = view.get("inputSourceAudit") or {}
+    manifest = view.get("jobFormulaManifest") or {}
+    goal = view.get("goalContract") or {}
+    equipment = view.get("equipment") or []
+
+    if not audit:
+        return [f"{context}: unified repair audit missing"]
+    if audit.get("version") != "unified_repair_audit_v1":
+        failures.append(f"{context}: unified repair audit version mismatch")
+    if audit.get("metric") != "unifiedConverted380":
+        failures.append(f"{context}: unified repair audit metric mismatch")
+    if audit.get("metricValue") != primary.get("value") or audit.get("metricValue") != summary.get("unifiedConverted380"):
+        failures.append(f"{context}: unified repair audit metric value mismatch")
+    if audit.get("basis") != summary.get("unifiedBasis"):
+        failures.append(f"{context}: unified repair audit basis mismatch")
+    checks = audit.get("checks") or []
+    expected_ids = {
+        "apiToCalculation",
+        "kmsFormulaCatalog",
+        "singleMetricFlow",
+        "bossJudgment",
+        "itemRepairTargets",
+        "repairRoadmapBossImpact",
+        "goalContract",
+    }
+    check_ids = {row.get("id") for row in checks}
+    if check_ids != expected_ids:
+        failures.append(f"{context}: unified repair audit checks mismatch {check_ids}")
+    if audit.get("checkCount") != len(checks):
+        failures.append(f"{context}: unified repair audit check count mismatch")
+    if audit.get("passedCount", 0) + audit.get("failedCount", 0) != audit.get("checkCount"):
+        failures.append(f"{context}: unified repair audit pass/fail count mismatch")
+    if audit.get("allPassed") is not True or audit.get("failedCheckIds"):
+        failures.append(f"{context}: unified repair audit failed {audit.get('failedCheckIds')}")
+    for row in checks:
+        if row.get("passed") is not True or not row.get("detail"):
+            failures.append(f"{context}: unified repair audit check incomplete {row}")
+
+    if not input_audit.get("allRequiredPresent"):
+        failures.append(f"{context}: unified repair audit input source contradiction")
+    if (manifest.get("jobCount") or 0) != len(KMS_JOB_NAMES):
+        failures.append(f"{context}: unified repair audit job count source mismatch")
+    if boss_audit.get("currentConverted") != audit.get("metricValue"):
+        failures.append(f"{context}: unified repair audit boss metric source mismatch")
+    if plan.get("currentConverted") != audit.get("metricValue"):
+        failures.append(f"{context}: unified repair audit repair metric source mismatch")
+    if not goal.get("canCompareUsers") or not goal.get("canJudgeBosses") or not goal.get("canRecommendItems"):
+        failures.append(f"{context}: unified repair audit goal contract contradiction")
+
+    repair_summary = audit.get("repairSummary") or {}
+    top = (plan.get("top") or [{}])[0]
+    annotated_count = sum(1 for item in equipment if item.get("needsRepair"))
+    if repair_summary.get("targetCount") != annotated_count:
+        failures.append(f"{context}: unified repair audit repair target count mismatch")
+    if repair_summary.get("topItem") != top.get("name"):
+        failures.append(f"{context}: unified repair audit top repair item mismatch")
+    if repair_summary.get("topGain") != top.get("expectedGain"):
+        failures.append(f"{context}: unified repair audit top repair gain mismatch")
+    if repair_summary.get("projectedConverted") != (plan.get("roadmapSummary") or {}).get("projectedConverted"):
+        failures.append(f"{context}: unified repair audit projected converted mismatch")
+    if repair_summary.get("bossImpact") != ((plan.get("roadmapSummary") or {}).get("bossImpact") or {}).get("label"):
+        failures.append(f"{context}: unified repair audit boss impact mismatch")
+
+    expected_paths = {
+        "apiInput": "inputSourceAudit",
+        "jobFormula": "jobFormulaManifest.current",
+        "singleMetric": "singleMetricAudit",
+        "bossJudgment": "bossBoardAudit",
+        "itemRepair": "itemUpgradePlan.top[0]",
+        "repairRoadmap": "itemUpgradePlan.roadmapSummary",
+    }
+    if audit.get("fieldPaths") != expected_paths:
+        failures.append(f"{context}: unified repair audit field paths mismatch")
+    return failures
+
+
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
@@ -629,6 +712,7 @@ def assert_full_job_view_models() -> None:
         failures.extend(formula_integrity_failures(view, job))
         failures.extend(input_source_failures(view, job))
         failures.extend(readiness_failures(view, job, {"ready", "caution"}))
+        failures.extend(unified_repair_audit_failures(view, job))
         failures.extend(formula_manifest_failures(manifest, job, job))
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
@@ -829,6 +913,7 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
     assert not recommendation_evidence_failures(view["itemUpgradePlan"], "sample 레테")
     assert not equipment_repair_annotation_failures(view, "sample 레테")
+    assert not unified_repair_audit_failures(view, "sample 레테")
     assert view["itemUpgradePlan"]["repairEvidence"]["top"]["item"] == view["itemUpgradePlan"]["top"][0]["name"]
     assert view["itemUpgradePlan"]["repairAudit"]["allPassed"]
     assert view["itemUpgradePlan"]["repairAudit"]["topItem"] == view["itemUpgradePlan"]["top"][0]["name"]

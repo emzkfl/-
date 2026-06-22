@@ -395,6 +395,7 @@ function renderCoverage(data) {
   const goal = data.goalContract || {};
   const bossAudit = data.bossBoardAudit || {};
   const readiness = data.readinessAudit || {};
+  const unifiedAudit = data.unifiedRepairAudit || {};
   const confidence = primary.confidence || {};
   const singleMetric = data.singleMetricAudit || {};
   const manifest = data.jobFormulaManifest || {};
@@ -441,6 +442,11 @@ function renderCoverage(data) {
       "계산 준비도",
       `${readiness.label || "-"} · ${formatNumber(readiness.score || 0)}점`,
       readiness.failedCount ? `점검: ${(readiness.failedLabels || []).slice(0, 3).join(" · ")}` : `${readiness.passedCount || 0} / ${readiness.checkCount || 0} 검사 통과`,
+    ),
+    coverageRow(
+      "단일 지표 감사",
+      `${unifiedAudit.label || "-"} · ${formatNumber(unifiedAudit.metricValue || primary.value || 0)}`,
+      `${unifiedAudit.passedCount || 0} / ${unifiedAudit.checkCount || 0} 통과${unifiedAudit.failedCheckIds?.length ? ` · 점검 ${unifiedAudit.failedCheckIds.slice(0, 3).join(" · ")}` : ""}`,
     ),
     coverageRow(
       "대표 지표 신뢰도",

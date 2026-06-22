@@ -18,12 +18,14 @@ from scripts.verify_calculation import (  # noqa: E402
     readiness_failures,
     sample_raw,
     single_metric_failures,
+    unified_repair_audit_failures,
 )
 
 
 REQUIRED_VIEW_KEYS = {
     "primaryMetric",
     "goalContract",
+    "unifiedRepairAudit",
     "summary",
     "bossBoard",
     "bossBoardAudit",
@@ -394,6 +396,7 @@ def assert_job_view(rule: dict[str, Any]) -> list[str]:
     failures.extend(formula_integrity_failures(view, context))
     failures.extend(input_source_failures(view, context))
     failures.extend(readiness_failures(view, context, {"ready", "caution"}))
+    failures.extend(unified_repair_audit_failures(view, context))
     return failures
 
 

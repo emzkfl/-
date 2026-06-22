@@ -30,6 +30,12 @@ http://127.0.0.1:4176/
 python scripts\verify_calculation.py
 ```
 
+로컬에 보정용 JSON 파일(`calibration-results.json`, `calibration-rankings.json`)이 있을 때는 직업별 보정 배율이 저장된 원사이트 샘플과 계속 맞는지도 확인할 수 있습니다.
+
+```powershell
+python scripts\verify_calibration_tables.py
+```
+
 ## Render 배포
 
 1. 이 폴더를 GitHub 저장소에 올립니다.

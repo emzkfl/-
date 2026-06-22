@@ -220,6 +220,37 @@ def formula_integrity_failures(view: dict, context: str) -> list[str]:
     return failures
 
 
+def input_source_failures(view: dict, context: str) -> list[str]:
+    failures: list[str] = []
+    audit = view.get("inputSourceAudit") or {}
+    expected_targets = {
+        "primaryMetric",
+        "bossBoard",
+        "itemUpgradePlan",
+        "presetOptimization",
+        "hexaConvertedDetail",
+        "extra",
+    }
+    if not audit:
+        return [f"{context}: input source audit missing"]
+    rows = audit.get("rows") or []
+    targets = {row.get("target") for row in rows}
+    if targets != expected_targets:
+        failures.append(f"{context}: input source targets mismatch missing={sorted(expected_targets - targets)} extra={sorted(targets - expected_targets)}")
+    if not audit.get("allRequiredPresent"):
+        failures.append(f"{context}: required input sources missing {rows}")
+    if audit.get("usageCount") != len(expected_targets):
+        failures.append(f"{context}: input source usage count mismatch")
+    for row in rows:
+        if row.get("presentRequired") != row.get("requiredTotal"):
+            failures.append(f"{context}/{row.get('target')}: required source missing")
+        if row.get("status") not in {"complete", "partial", "warning", "blocked"}:
+            failures.append(f"{context}/{row.get('target')}: invalid source status {row.get('status')}")
+        if not row.get("reason"):
+            failures.append(f"{context}/{row.get('target')}: source reason missing")
+    return failures
+
+
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
@@ -344,6 +375,7 @@ def assert_full_job_view_models() -> None:
             failures.append(f"{job}: item plan does not use primary metric")
         failures.extend(single_metric_failures(view, job))
         failures.extend(formula_integrity_failures(view, job))
+        failures.extend(input_source_failures(view, job))
         failures.extend(formula_manifest_failures(manifest, job, job))
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
@@ -568,6 +600,8 @@ def assert_sample_view_model() -> None:
     assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
     assert not formula_integrity_failures(view, "sample 레테")
     assert view["formulaIntegrityAudit"]["allPassed"]
+    assert not input_source_failures(view, "sample 레테")
+    assert view["inputSourceAudit"]["allRequiredPresent"]
     assert view["singleMetricAudit"]["allMatched"]
     assert view["singleMetricAudit"]["value"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])
@@ -715,6 +749,9 @@ def assert_api_warning_diagnostics() -> None:
     assert view["summary"]["apiWarningCount"] == 1
     assert view["primaryMetric"]["confidence"]["score"] < 90
     assert any("경고" in reason for reason in view["primaryMetric"]["confidence"]["reasons"])
+    assert view["inputSourceAudit"]["allRequiredPresent"]
+    assert view["inputSourceAudit"]["warningCount"] >= 1
+    assert any("vmatrix" in row.get("warningSections", []) for row in view["inputSourceAudit"]["rows"])
     assert view["itemUpgradePlan"]["reliability"]["status"] == "caution"
     assert any("경고" in reason for reason in view["itemUpgradePlan"]["reliability"]["reasons"])
 

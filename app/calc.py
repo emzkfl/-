@@ -1941,6 +1941,99 @@ def build_single_metric_audit(
     }
 
 
+def build_input_source_audit(raw: dict[str, Any], api_quality: dict[str, Any]) -> dict[str, Any]:
+    present = set(api_quality.get("presentSections") or [])
+    warnings = {str(row.get("section") or ""): str(row.get("message") or "") for row in raw.get("warnings") or []}
+    usages = [
+        {
+            "target": "primaryMetric",
+            "label": "대표 환산",
+            "required": ["basic", "stat", "itemEquipment"],
+            "optional": ["hexamatrix", "hexamatrixStat", "skill6", "otherStat"],
+            "reason": "직업, 종합 능력치, 장착 장비, HEXA 보정",
+        },
+        {
+            "target": "bossBoard",
+            "label": "보스 가능 여부",
+            "required": ["stat", "itemEquipment"],
+            "optional": ["hexamatrix", "hexamatrixStat", "skill6"],
+            "reason": "대표 환산을 보스 요구 환산과 비교",
+        },
+        {
+            "target": "itemUpgradePlan",
+            "label": "장비 개선 추천",
+            "required": ["stat", "itemEquipment"],
+            "optional": ["ability", "hyperStat", "hexamatrixStat"],
+            "reason": "현재 장비 옵션과 직업별 효율로 개선 시나리오 재계산",
+        },
+        {
+            "target": "presetOptimization",
+            "label": "프리셋 비교",
+            "required": ["stat", "itemEquipment"],
+            "optional": ["ability", "hyperStat"],
+            "reason": "장비/어빌/하이퍼 프리셋 조합 비교",
+        },
+        {
+            "target": "hexaConvertedDetail",
+            "label": "HEXA 보정",
+            "required": ["stat", "itemEquipment"],
+            "optional": ["hexamatrix", "hexamatrixStat", "skill6"],
+            "reason": "HEXA 스탯 기여와 6차 강화 완성도 반영",
+        },
+        {
+            "target": "extra",
+            "label": "보조 정보",
+            "required": ["basic"],
+            "optional": [
+                "symbol",
+                "setEffect",
+                "union",
+                "petEquipment",
+                "linkSkill",
+                "vmatrix",
+                "ringExchangeSkillEquipment",
+                "ringReserveSkillEquipment",
+            ],
+            "reason": "화면 표시와 보조 진단",
+        },
+    ]
+
+    rows = []
+    for usage in usages:
+        required = usage["required"]
+        optional = usage["optional"]
+        missing_required = [section for section in required if section not in present]
+        missing_optional = [section for section in optional if section not in present]
+        warning_sections = [section for section in required + optional if section in warnings]
+        status = "blocked" if missing_required else "warning" if warning_sections else "partial" if missing_optional else "complete"
+        rows.append(
+            {
+                **usage,
+                "presentRequired": len(required) - len(missing_required),
+                "requiredTotal": len(required),
+                "presentOptional": len(optional) - len(missing_optional),
+                "optionalTotal": len(optional),
+                "missingRequired": missing_required,
+                "missingOptional": missing_optional,
+                "warningSections": warning_sections,
+                "status": status,
+            }
+        )
+
+    status_order = {"complete": 3, "partial": 2, "warning": 1, "blocked": 0}
+    worst = min(rows, key=lambda row: status_order[row["status"]]) if rows else {"status": "blocked"}
+    return {
+        "status": worst["status"],
+        "allRequiredPresent": all(not row["missingRequired"] for row in rows),
+        "usageCount": len(rows),
+        "completeCount": sum(1 for row in rows if row["status"] == "complete"),
+        "warningCount": sum(1 for row in rows if row["status"] == "warning"),
+        "partialCount": sum(1 for row in rows if row["status"] == "partial"),
+        "blockedCount": sum(1 for row in rows if row["status"] == "blocked"),
+        "rows": rows,
+    }
+
+
 def potential_lines(item: dict[str, Any], additional: bool = False) -> list[str]:
     prefix = "additional_potential_option" if additional else "potential_option"
     return [str(item.get(f"{prefix}_{idx}") or "") for idx in (1, 2, 3) if item.get(f"{prefix}_{idx}")]
@@ -3603,6 +3696,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
 
     union = raw.get("union") or {}
     api_quality = api_data_quality(raw)
+    input_source_audit = build_input_source_audit(raw, api_quality)
     confidence = primary_metric_confidence(formula_quality, api_quality, coverage)
     attach_upgrade_reliability(item_upgrade_plan, api_quality, confidence, formula_quality)
     for preset_plan in preset_upgrade_plans:
@@ -3688,6 +3782,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "presetViews": preset_views,
         "presetUpgradePlans": preset_upgrade_plans,
         "apiDataQuality": api_quality,
+        "inputSourceAudit": input_source_audit,
         "formulaDiagnostics": formula_quality,
         "jobFormulaManifest": formula_manifest,
         "calculationCoverage": coverage,

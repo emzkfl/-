@@ -383,6 +383,7 @@ function renderCoverage(data) {
   const coverage = data.calculationCoverage || {};
   const audit = data.calculationAudit || {};
   const formulaIntegrity = data.formulaIntegrityAudit || {};
+  const sourceAudit = data.inputSourceAudit || {};
   const quality = data.apiDataQuality || {};
   const formula = data.formulaDiagnostics || {};
   const primary = data.primaryMetric || {};
@@ -451,6 +452,11 @@ function renderCoverage(data) {
       "API 데이터",
       `${formatNumber(quality.requiredPresent || 0)} / ${formatNumber(quality.requiredTotal || 0)} 필수 · ${formatNumber(quality.optionalPresent || 0)} / ${formatNumber(quality.optionalTotal || 0)} 선택`,
       `${formatNumber(quality.qualityPercent || 0, 1)}% · ${apiStatus}${optionalMissingPreview ? ` · 누락 ${optionalMissingPreview}` : ""}`,
+    ),
+    coverageRow(
+      "입력 출처",
+      `${sourceAudit.allRequiredPresent ? "필수 일치" : "필수 누락"} · ${formatNumber(sourceAudit.usageCount || 0)}개 사용처`,
+      `${formatNumber(sourceAudit.completeCount || 0)} 완전 · ${formatNumber(sourceAudit.partialCount || 0)} 부분 · ${formatNumber(sourceAudit.warningCount || 0)} 경고`,
     ),
     coverageRow("API 경고", `${formatNumber(quality.warningCount || 0)}개`, warningPreview || "없음"),
     coverageRow(

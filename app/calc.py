@@ -1593,7 +1593,11 @@ def build_calculation_audit(
         {
             "label": "HEXA 스탯",
             "value": f"{int(stat_effect.get('count') or 0)}개",
-            "detail": f"적용옵션 {len(stat_effect.get('details') or [])}개 · 환산차 {float(hexa_converted.get('gap') or 0):,.0f}",
+            "detail": (
+                f"적용옵션 {len(stat_effect.get('details') or [])}개 · "
+                f"스탯기여 +{float(hexa_converted.get('statConvertedGain') or 0):,.0f} · "
+                f"HEXA보정차 {float(hexa_converted.get('gap') or 0):,.0f}"
+            ),
         },
     ]
     return {
@@ -2622,6 +2626,16 @@ def hexa_converted_score(
         current["attackType"],
     )
     skill_effect = hexa_skill_level_summary(raw)
+    stat_profile = stat_effect.get("profile") or empty_profile()
+    stats_without_hexa = remove_hexa_profile(stats, stat_profile) if stat_effect.get("details") else dict(stats)
+    without_hexa_stat = converted_score(
+        stats_without_hexa,
+        item_response,
+        character_class=character_class,
+        use_combat_model=False,
+    )
+    stat_gain = max(0.0, float(current["converted"] or 0.0) - float(without_hexa_stat["converted"] or 0.0))
+    stat_gain_percent = stat_gain / float(without_hexa_stat["converted"]) * 100 if without_hexa_stat["converted"] else 0.0
     ratio = hexa_completion_ratio(skill_effect["totalLevel"])
     converted = current["converted"] * ratio
     converted = min(current["converted"], converted)
@@ -2629,6 +2643,9 @@ def hexa_converted_score(
         "converted": converted,
         "completionRatio": ratio,
         "gap": current["converted"] - converted,
+        "withoutHexaStatConverted": without_hexa_stat["converted"],
+        "statConvertedGain": stat_gain,
+        "statConvertedGainPercent": stat_gain_percent,
         "statEffect": stat_effect,
         "skillEffect": skill_effect,
     }
@@ -2986,6 +3003,8 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
             "hexaSkillEffectPercent": round(hexa_converted["skillEffect"]["effectRate"] * 100, 2),
             "hexaCompletionPercent": round(hexa_converted["completionRatio"] * 100, 2),
             "hexaStatCoreCount": hexa_converted["statEffect"]["count"],
+            "hexaStatGain380": round(hexa_converted["statConvertedGain"]),
+            "hexaStatGainPercent": round(hexa_converted["statConvertedGainPercent"], 2),
             "bossBasisConverted380": boss_basis,
             "bestConverted380": best_converted,
             "armorAdjustedCombatPower": round(combat_power * converted["armorFactor"]),

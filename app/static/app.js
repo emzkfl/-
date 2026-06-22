@@ -152,7 +152,7 @@ function renderScores(data) {
   combatPower.textContent = koreanPower(summary.combatPower);
   convertedPower.textContent = formatNumber(primary.value || summary.unifiedConverted380 || summary.hexaConverted380 || summary.converted380);
   hexaPower.textContent = formatNumber(summary.hexaConverted380);
-  hexaDetail.textContent = `${primary.label || "대표 지표"} 기준 · 신뢰도 ${confidence.label || "-"} ${formatNumber(confidence.score || 0)}점 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)}`;
+  hexaDetail.textContent = `${primary.label || "대표 지표"} 기준 · 신뢰도 ${confidence.label || "-"} ${formatNumber(confidence.score || 0)}점 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 스탯기여 +${formatNumber(summary.hexaStatGain380 || 0)}`;
 }
 
 function presetByNo(rows, no) {

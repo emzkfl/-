@@ -219,6 +219,28 @@ def assert_sample_view_model() -> None:
                 {"stat_name": "검증 기타", "stat_value": "+1"},
             ]
         },
+        "hexamatrixStat": {
+            "character_hexa_stat_core": [
+                {
+                    "main_stat_name": "주력 스탯",
+                    "main_stat_level": 5,
+                    "sub_stat_name_1": "마력",
+                    "sub_stat_level_1": 3,
+                    "sub_stat_name_2": "보스 데미지",
+                    "sub_stat_level_2": 2,
+                }
+            ]
+        },
+        "hexamatrix": {
+            "character_hexa_core_equipment": [
+                {"hexa_core_name": "검증 HEXA 코어", "hexa_core_level": 30},
+            ]
+        },
+        "skill6": {
+            "character_skill": [
+                {"skill_name": "검증 6차 스킬", "skill_level": 20},
+            ]
+        },
     }
     view = build_view_model(raw)
     coverage = view["calculationCoverage"]
@@ -244,6 +266,11 @@ def assert_sample_view_model() -> None:
     assert primary["usedBy"]["itemUpgradePlan"] == primary["value"]
     assert primary["usedBy"]["presetOptimization"] == primary["value"]
     assert primary["comparison"]["hexaConverted380"] == primary["value"]
+    assert view["hexaConvertedDetail"]["skillEffect"]["totalLevel"] == 50
+    assert view["hexaConvertedDetail"]["completionRatio"] < 1
+    assert view["hexaConvertedDetail"]["statConvertedGain"] > 0
+    assert view["summary"]["hexaStatGain380"] == round(view["hexaConvertedDetail"]["statConvertedGain"])
+    assert view["summary"]["hexaStatGainPercent"] > 0
     assert confidence["score"] >= 70
     assert confidence["level"] in {"high", "medium"}
     assert confidence["reasons"]

@@ -618,6 +618,15 @@ def option_number(options: dict[str, Any], key: str) -> float:
     return 0.0
 
 
+def compact_option_text(value: str | None) -> str:
+    return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def option_text_has(text: str, *phrases: str) -> bool:
+    compacted = compact_option_text(text)
+    return any(compact_option_text(phrase) in compacted for phrase in phrases)
+
+
 def parse_option_line(profile: dict[str, dict[str, float]], line: str | None) -> None:
     if not line:
         return
@@ -626,7 +635,7 @@ def parse_option_line(profile: dict[str, dict[str, float]], line: str | None) ->
         return
 
     is_percent = "%" in line
-    if "\uc62c\uc2a4\ud0ef" in line or "\uc804\uccb4 \uc2a4\ud0ef" in line:
+    if option_text_has(line, "\uc62c\uc2a4\ud0ef", "\uc804\uccb4 \uc2a4\ud0ef", "all stat"):
         for stat in STAT_KEYS:
             add_to_profile(profile, "percent" if is_percent else "flat", stat, value)
         return
@@ -639,29 +648,29 @@ def parse_option_line(profile: dict[str, dict[str, float]], line: str | None) ->
         K_HP: ("\ucd5c\ub300 HP", "Max HP", "MAX HP", "MHP", "HP"),
     }
     for key, words in stat_words.items():
-        if any(word in line for word in words):
+        if option_text_has(line, *words):
             add_to_profile(profile, "percent" if is_percent else "flat", key, value)
             return
 
-    if "\uacf5\uaca9\ub825\uacfc \ub9c8\ub825" in line or "\uacf5\uaca9\ub825/\ub9c8\ub825" in line:
+    if option_text_has(line, "\uacf5\uaca9\ub825\uacfc \ub9c8\ub825", "\uacf5\uaca9\ub825/\ub9c8\ub825", "\uacf5\uaca9\ub825 \ubc0f \ub9c8\ub825"):
         group = "percent" if is_percent else "flat"
         add_to_profile(profile, group, K_ATTACK, value)
         add_to_profile(profile, group, K_MAGIC, value)
-    elif K_ATTACK in line:
+    elif option_text_has(line, K_ATTACK):
         add_to_profile(profile, "percent" if is_percent else "flat", K_ATTACK, value)
-    elif K_MAGIC in line:
+    elif option_text_has(line, K_MAGIC):
         add_to_profile(profile, "percent" if is_percent else "flat", K_MAGIC, value)
-    elif "\ubcf4\uc2a4 \ubaac\uc2a4\ud130" in line:
+    elif option_text_has(line, "\ubcf4\uc2a4 \ubaac\uc2a4\ud130", "\ubcf4\uc2a4 \ub370\ubbf8\uc9c0", "\ubcf4\uacf5"):
         add_to_profile(profile, "combat", K_BOSS, value)
-    elif K_CRIT_DAMAGE in line:
+    elif option_text_has(line, K_CRIT_DAMAGE, "\ud06c\ub9ac \ub370\ubbf8\uc9c0", "\ud06c\ub380"):
         add_to_profile(profile, "combat", K_CRIT_DAMAGE, value)
-    elif K_CRIT_RATE in line:
+    elif option_text_has(line, K_CRIT_RATE, "\ud06c\ub9ac \ud655\ub960", "\ud06c\ud655"):
         add_to_profile(profile, "combat", K_CRIT_RATE, value)
-    elif K_IED in line:
+    elif option_text_has(line, K_IED, "\ubaac\uc2a4\ud130 \ubc29\uc5b4\uc728 \ubb34\uc2dc", "\ubc29\ubb34"):
         add_to_profile(profile, "combat", K_IED, value)
-    elif K_FINAL in line:
+    elif option_text_has(line, K_FINAL, "\ucd5c\uc885\ub380"):
         add_to_profile(profile, "combat", K_FINAL, value)
-    elif K_DAMAGE in line and "\uc77c\ubc18 \ubaac\uc2a4\ud130" not in line:
+    elif option_text_has(line, K_DAMAGE) and not option_text_has(line, "\uc77c\ubc18 \ubaac\uc2a4\ud130"):
         add_to_profile(profile, "combat", K_DAMAGE, value)
 
 

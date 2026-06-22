@@ -11,12 +11,21 @@ from app.calc import (  # noqa: E402
     COMBAT_CONVERTED_JOB_FACTORS,
     JOB_CONVERTED_MULTIPLIERS,
     JOB_DETAIL_RULES,
+    K_ATTACK,
+    K_BOSS,
+    K_CRIT_DAMAGE,
+    K_CRIT_RATE,
+    K_DAMAGE,
+    K_FINAL,
+    K_IED,
+    K_MAGIC,
     KMS_JOB_NAMES,
     SPECIAL_COMBAT_CONVERTED_MODELS,
     build_view_model,
     calculation_coverage,
     job_detail_rule,
     primary_job_name,
+    profile_from_lines,
 )
 
 
@@ -513,6 +522,31 @@ def assert_unknown_job_formula_diagnostics() -> None:
     assert any("미지원" in reason for reason in view["primaryMetric"]["confidence"]["reasons"])
 
 
+def assert_option_line_parsing() -> None:
+    profile = profile_from_lines(
+        [
+            "공격력 및 마력 : +9%",
+            "보공 +40%",
+            "몬스터방어율무시 : +35%",
+            "크뎀 : +8%",
+            "크확 : +12%",
+            "최종뎀 : +1%",
+            "데미지 : +12%",
+            "일반 몬스터 공격 시 데미지 : +7%",
+            "전체스탯 : +5%",
+        ]
+    )
+    assert profile["percent"][K_ATTACK] == 9
+    assert profile["percent"][K_MAGIC] == 9
+    assert profile["combat"][K_BOSS] == 40
+    assert profile["combat"][K_IED] == 35
+    assert profile["combat"][K_CRIT_DAMAGE] == 8
+    assert profile["combat"][K_CRIT_RATE] == 12
+    assert profile["combat"][K_FINAL] == 1
+    assert profile["combat"][K_DAMAGE] == 12
+    assert all(profile["percent"][stat] == 5 for stat in ("STR", "DEX", "INT", "LUK"))
+
+
 def main() -> None:
     assert_job_table_integrity()
     assert_full_job_coverage()
@@ -522,6 +556,7 @@ def main() -> None:
     assert_preset_metric_basis()
     assert_api_warning_diagnostics()
     assert_unknown_job_formula_diagnostics()
+    assert_option_line_parsing()
     print(f"OK: {len(KMS_JOB_NAMES)} KMS jobs covered")
 
 

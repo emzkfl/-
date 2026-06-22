@@ -167,6 +167,17 @@ function selectedCombination(data) {
   );
 }
 
+function selectedUpgradePlan(data) {
+  const plans = data.presetUpgradePlans || [];
+  const matched = plans.find(
+    (row) =>
+      Number(row.itemPreset) === Number(selectedPresets.itemPreset) &&
+      Number(row.abilityPreset) === Number(selectedPresets.abilityPreset) &&
+      Number(row.hyperPreset) === Number(selectedPresets.hyperPreset),
+  );
+  return matched?.plan || data.itemUpgradePlan || {};
+}
+
 function selectedEquipment(data) {
   return presetByNo(data.presetViews?.equipment, selectedPresets.itemPreset)?.items || data.equipment || [];
 }
@@ -223,6 +234,7 @@ function applyPresetSelection(data) {
   renderEquipmentPanel(data);
   renderAbilityPanel(data);
   renderHyperPanel(data);
+  renderUpgradePlan(data);
   renderItems(data);
 }
 
@@ -386,12 +398,13 @@ function optionLine(label, value, suffix = "") {
 }
 
 function renderUpgradePlan(data) {
-  const plan = data.itemUpgradePlan || {};
+  const plan = selectedUpgradePlan(data);
   const rows = plan.top || [];
   const targets = (plan.upgradeTargets || []).join("/");
+  const presetLabel = selectedPresets.itemPreset ? ` · 장비 ${selectedPresets.itemPreset}/어빌 ${selectedPresets.abilityPreset || "-"}/하이퍼 ${selectedPresets.hyperPreset || "-"}` : "";
   const focus = plan.repairFocus || {};
   const focusText = focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
-  upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${targets ? ` · ${targets}` : ""}${focusText}`;
+  upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${focusText}`;
   upgradeSlotList.innerHTML = (plan.slotSummary || [])
     .slice(0, 4)
     .map((slot) => `<article class="upgrade-slot">

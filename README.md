@@ -32,6 +32,7 @@ python scripts\verify_calculation.py
 
 로컬에 보정용 JSON 파일(`calibration-results.json`, `calibration-rankings.json`)이 있을 때는 직업별 보정 배율이 저장된 원사이트 샘플과 계속 맞는지도 확인할 수 있습니다.
 앱 응답에는 각 직업에 적용된 내장 보정 표본, 원본 환산값, raw 환산값, 배율, 표본 오차가 함께 포함됩니다.
+장비/어빌리티/하이퍼스탯 프리셋을 선택하면 해당 조합 기준의 개선 우선순위도 함께 표시됩니다.
 
 ```powershell
 python scripts\verify_calibration_tables.py

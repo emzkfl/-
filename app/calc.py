@@ -1959,6 +1959,8 @@ def build_item_upgrade_plan(
     current_converted_override: float | None = None,
     score_multiplier: float = 1.0,
     basis: str = "\ud658\uc0b0(380)",
+    top_limit: int = 8,
+    include_all: bool = True,
 ) -> dict[str, Any]:
     items = item_response.get("item_equipment") or []
     current_converted = float(current_converted_override if current_converted_override is not None else converted.get("converted") or 0.0)
@@ -2042,9 +2044,72 @@ def build_item_upgrade_plan(
             "expectedGain": (slot_summary[0] or {}).get("totalGain") if slot_summary else 0,
         },
         "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
-        "top": rows[:8],
-        "all": rows,
+        "top": rows[:top_limit],
+        "all": rows if include_all else [],
     }
+
+
+def build_preset_upgrade_plans(
+    raw: dict[str, Any],
+    stats: dict[str, float],
+    character_class: str,
+    score_multiplier: float = 1.0,
+    basis: str = "\ud658\uc0b0(380)",
+) -> list[dict[str, Any]]:
+    item_response = raw.get("itemEquipment") or {}
+    ability_response = raw.get("ability") or {}
+    hyper_response = raw.get("hyperStat") or {}
+    item_presets = available_item_presets(item_response)
+    ability_presets = available_ability_presets(ability_response)
+    hyper_presets = available_hyper_presets(hyper_response)
+
+    active_item = int_number(item_response.get("preset_no"), 0) or next(iter(item_presets), 1)
+    active_ability = int_number(ability_response.get("preset_no"), 0) or next(iter(ability_presets), 1)
+    active_hyper = int_number(hyper_response.get("use_preset_no"), 0) or next(iter(hyper_presets), 1)
+    active_profile = merge_profiles(
+        equipment_profile(item_presets.get(active_item, item_response.get("item_equipment") or [])),
+        ability_profile(ability_presets.get(active_ability, {"ability_info": ability_response.get("ability_info") or []})),
+        hyper_profile(hyper_presets.get(active_hyper, [])),
+    )
+
+    plans = []
+    for item_no, items in item_presets.items():
+        for ability_no, ability in ability_presets.items() or [(active_ability, {})]:
+            for hyper_no, hyper in hyper_presets.items() or [(active_hyper, [])]:
+                candidate_profile = merge_profiles(equipment_profile(items), ability_profile(ability), hyper_profile(hyper))
+                adjusted_stats = apply_profile_delta(stats, subtract_profiles(candidate_profile, active_profile))
+                item_payload = {"item_equipment": items}
+                converted = converted_score(
+                    adjusted_stats,
+                    item_payload,
+                    character_class=character_class,
+                    use_combat_model=False,
+                )
+                converted_value = converted["converted"] * score_multiplier
+                plan = build_item_upgrade_plan(
+                    adjusted_stats,
+                    item_payload,
+                    converted,
+                    character_class,
+                    current_converted_override=converted_value,
+                    score_multiplier=score_multiplier,
+                    basis=basis,
+                    top_limit=5,
+                    include_all=False,
+                )
+                plans.append(
+                    {
+                        "itemPreset": item_no,
+                        "abilityPreset": ability_no,
+                        "hyperPreset": hyper_no,
+                        "converted": round(converted_value),
+                        "isCurrent": item_no == active_item and ability_no == active_ability and hyper_no == active_hyper,
+                        "plan": plan,
+                    }
+                )
+
+    plans.sort(key=lambda row: (not row["isCurrent"], row["itemPreset"], row["abilityPreset"], row["hyperPreset"]))
+    return plans
 
 
 def summarize_item(item: dict[str, Any], main_stat: str, attack_type: str) -> dict[str, Any]:
@@ -2523,6 +2588,13 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         score_multiplier=unified_multiplier,
         basis=unified_basis,
     )
+    preset_upgrade_plans = build_preset_upgrade_plans(
+        raw,
+        stats,
+        character_class,
+        score_multiplier=unified_multiplier,
+        basis=unified_basis,
+    )
     preset_views = build_preset_views(raw, main_stat, attack_type, preset_optimization)
     boss_basis = round(unified_converted)
     best_preset = preset_optimization.get("best") or {}
@@ -2575,6 +2647,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "hexaConvertedDetail": hexa_converted,
         "presetOptimization": preset_optimization,
         "presetViews": preset_views,
+        "presetUpgradePlans": preset_upgrade_plans,
         "calculationCoverage": coverage,
         "calculationAudit": calculation_audit,
         "itemUpgradePlan": item_upgrade_plan,

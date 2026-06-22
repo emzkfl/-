@@ -206,10 +206,21 @@ def assert_preset_metric_basis() -> None:
     raw = sample_raw("레테", "INT", "마력", "INT : +3%")
     raw["itemEquipment"]["preset_no"] = 1
     raw["itemEquipment"]["item_equipment_preset_1"] = raw["itemEquipment"]["item_equipment"]
+    second_items = [dict(item) for item in raw["itemEquipment"]["item_equipment"]]
+    second_items[0]["potential_option_1"] = "마력 : +12%"
+    raw["itemEquipment"]["item_equipment_preset_2"] = second_items
     view = build_view_model(raw)
     assert view["presetOptimization"]["basis"] == view["summary"]["unifiedBasis"]
     assert view["presetOptimization"]["current"]["converted"] == view["summary"]["unifiedConverted380"]
-    assert view["presetViews"]["combinations"][0]["converted"] == view["summary"]["unifiedConverted380"]
+    current_combo = next(row for row in view["presetViews"]["combinations"] if row["itemPreset"] == 1)
+    assert current_combo["converted"] == view["summary"]["unifiedConverted380"]
+    assert view["presetUpgradePlans"]
+    assert len(view["presetUpgradePlans"]) >= 2
+    current_plan = next(row for row in view["presetUpgradePlans"] if row["isCurrent"])
+    assert current_plan["converted"] == view["summary"]["unifiedConverted380"]
+    assert current_plan["plan"]["basis"] == view["summary"]["unifiedBasis"]
+    assert current_plan["plan"]["slotSummary"]
+    assert any(row["itemPreset"] == 2 and row["plan"]["slotSummary"] for row in view["presetUpgradePlans"])
 
 
 def main() -> None:

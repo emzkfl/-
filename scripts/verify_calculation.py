@@ -457,8 +457,18 @@ def assert_preset_metric_basis() -> None:
     current_plan = next(row for row in view["presetUpgradePlans"] if row["isCurrent"])
     assert current_plan["converted"] == view["summary"]["unifiedConverted380"]
     assert current_plan["plan"]["basis"] == view["summary"]["unifiedBasis"]
+    assert current_plan["plan"]["presetSelection"] == {
+        "itemPreset": current_plan["itemPreset"],
+        "abilityPreset": current_plan["abilityPreset"],
+        "hyperPreset": current_plan["hyperPreset"],
+        "isCurrent": True,
+    }
     assert current_plan["plan"]["slotSummary"]
-    assert any(row["itemPreset"] == 2 and row["plan"]["slotSummary"] for row in view["presetUpgradePlans"])
+    second_plan = next(row for row in view["presetUpgradePlans"] if row["itemPreset"] == 2)
+    assert second_plan["plan"]["presetSelection"]["itemPreset"] == 2
+    assert second_plan["plan"]["presetSelection"]["abilityPreset"] == second_plan["abilityPreset"]
+    assert second_plan["plan"]["presetSelection"]["hyperPreset"] == second_plan["hyperPreset"]
+    assert second_plan["plan"]["slotSummary"]
 
 
 def assert_api_warning_diagnostics() -> None:

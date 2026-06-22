@@ -159,13 +159,17 @@ function presetByNo(rows, no) {
   return (rows || []).find((row) => Number(row.no) === Number(no));
 }
 
+function presetMatches(row, key, selectedNo) {
+  return selectedNo == null || Number(row?.[key]) === Number(selectedNo);
+}
+
 function selectedCombination(data) {
   const combinations = data.presetViews?.combinations || [];
   return combinations.find(
     (row) =>
-      Number(row.itemPreset) === Number(selectedPresets.itemPreset) &&
-      Number(row.abilityPreset) === Number(selectedPresets.abilityPreset) &&
-      Number(row.hyperPreset) === Number(selectedPresets.hyperPreset),
+      presetMatches(row, "itemPreset", selectedPresets.itemPreset) &&
+      presetMatches(row, "abilityPreset", selectedPresets.abilityPreset) &&
+      presetMatches(row, "hyperPreset", selectedPresets.hyperPreset),
   );
 }
 
@@ -173,9 +177,9 @@ function selectedUpgradePlan(data) {
   const plans = data.presetUpgradePlans || [];
   const matched = plans.find(
     (row) =>
-      Number(row.itemPreset) === Number(selectedPresets.itemPreset) &&
-      Number(row.abilityPreset) === Number(selectedPresets.abilityPreset) &&
-      Number(row.hyperPreset) === Number(selectedPresets.hyperPreset),
+      presetMatches(row, "itemPreset", selectedPresets.itemPreset) &&
+      presetMatches(row, "abilityPreset", selectedPresets.abilityPreset) &&
+      presetMatches(row, "hyperPreset", selectedPresets.hyperPreset),
   );
   return matched?.plan || data.itemUpgradePlan || {};
 }

@@ -2443,6 +2443,12 @@ def build_preset_upgrade_plans(
                     top_limit=5,
                     include_all=False,
                 )
+                plan["presetSelection"] = {
+                    "itemPreset": item_no,
+                    "abilityPreset": ability_no,
+                    "hyperPreset": hyper_no,
+                    "isCurrent": item_no == active_item and ability_no == active_ability and hyper_no == active_hyper,
+                }
                 plans.append(
                     {
                         "itemPreset": item_no,

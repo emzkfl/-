@@ -24,10 +24,16 @@ http://127.0.0.1:4176/
 
 ## 검증
 
+전체 검증:
+
+```powershell
+python scripts\verify_all.py
+```
+
 Python/JavaScript 문법 검사:
 
 ```powershell
-python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_calculation.py scripts\verify_calibration_tables.py scripts\verify_goal_readiness.py scripts\verify_official_job_catalog.py scripts\verify_nexon_endpoint_contract.py scripts\verify_fetch_character_contract.py scripts\verify_frontend_single_metric.py scripts\verify_frontend_repair_output.py scripts\verify_ranking_single_metric.py
+python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_all.py scripts\verify_calculation.py scripts\verify_calibration_tables.py scripts\verify_goal_readiness.py scripts\verify_official_job_catalog.py scripts\verify_nexon_endpoint_contract.py scripts\verify_fetch_character_contract.py scripts\verify_frontend_single_metric.py scripts\verify_frontend_repair_output.py scripts\verify_ranking_single_metric.py
 node --check app\static\app.js
 ```
 

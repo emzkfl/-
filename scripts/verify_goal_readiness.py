@@ -52,6 +52,7 @@ REQUIRED_PLAN_KEYS = {
     "roadmapSummary",
     "repairAudit",
     "repairEvidence",
+    "repairFocus",
     "reliability",
 }
 
@@ -122,6 +123,7 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
     all_rows = plan.get("all") or []
     roadmap = plan.get("repairRoadmap") or []
     weakness_summary = plan.get("weaknessSummary") or []
+    repair_focus = plan.get("repairFocus") or {}
 
     if not all_rows:
         failures.append(f"{context}: no item improvement candidates")
@@ -134,18 +136,64 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
 
     if rows:
         first = rows[0]
+        required_row_fields = {
+            "slot",
+            "name",
+            "currentState",
+            "recommendedType",
+            "recommendedAction",
+            "reason",
+            "expectedGain",
+            "expectedGainPercent",
+            "recommendationEvidence",
+            "scenarios",
+            "weaknesses",
+        }
+        missing_row_fields = sorted(required_row_fields - set(first))
+        if missing_row_fields:
+            failures.append(f"{context}: top candidate missing fields {missing_row_fields}")
         if first.get("expectedGain", 0) <= 0:
             failures.append(f"{context}: top expected gain is not positive")
+        if first.get("expectedGainPercent", 0) <= 0:
+            failures.append(f"{context}: top expected gain percent is not positive")
+        if not first.get("slot") or not first.get("name"):
+            failures.append(f"{context}: top candidate does not identify an item slot and name")
+        if not first.get("recommendedType"):
+            failures.append(f"{context}: top recommended type missing")
         if not first.get("recommendedAction"):
             failures.append(f"{context}: top recommended action missing")
+        if not first.get("reason"):
+            failures.append(f"{context}: top recommendation reason missing")
         if not first.get("weaknesses"):
             failures.append(f"{context}: top weaknesses missing")
+        if not first.get("scenarios"):
+            failures.append(f"{context}: top improvement scenarios missing")
+        if not (first.get("recommendationEvidence") or {}).get("source"):
+            failures.append(f"{context}: top recommendation evidence source missing")
         if plan.get("repairChecklist"):
             checklist_first = plan["repairChecklist"][0]
+            for key in ("slot", "item", "type", "action", "description", "reason", "expectedGain", "weakness"):
+                if not checklist_first.get(key):
+                    failures.append(f"{context}: first checklist field {key} missing")
             if checklist_first.get("item") != first.get("name"):
                 failures.append(f"{context}: first checklist item does not match top candidate")
             if checklist_first.get("expectedGain") != first.get("expectedGain"):
                 failures.append(f"{context}: first checklist gain does not match top candidate")
+            if checklist_first.get("slot") != first.get("slot"):
+                failures.append(f"{context}: first checklist slot does not match top candidate")
+            if checklist_first.get("action") != first.get("recommendedAction"):
+                failures.append(f"{context}: first checklist action does not match top candidate")
+        if repair_focus:
+            if repair_focus.get("slot") != first.get("slot"):
+                failures.append(f"{context}: repair focus slot does not match top candidate")
+            if repair_focus.get("category") != first.get("recommendedType"):
+                failures.append(f"{context}: repair focus category does not match top candidate")
+            if repair_focus.get("expectedGain") != first.get("expectedGain"):
+                failures.append(f"{context}: repair focus gain does not match top candidate")
+            if not repair_focus.get("description"):
+                failures.append(f"{context}: repair focus description missing")
+        else:
+            failures.append(f"{context}: repair focus missing")
 
     if roadmap:
         current = int(round(float(plan.get("currentConverted") or 0)))
@@ -162,6 +210,22 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
 
     failures.extend(recommendation_evidence_failures(plan, context))
     return failures
+
+
+def assert_upgrade_targets(rule: dict[str, Any], view: dict[str, Any], context: str) -> list[str]:
+    plan = view.get("itemUpgradePlan") or {}
+    targets = plan.get("upgradeTargets") or []
+    main_stat = str(rule.get("mainStat") or "")
+    stat_mode = str(rule.get("statMode") or "")
+    if stat_mode == "demon_avenger":
+        expected = ["최대 HP"]
+    elif stat_mode == "xenon":
+        expected = ["STR", "DEX", "LUK"]
+    else:
+        expected = [main_stat]
+    if targets != expected:
+        return [f"{context}: upgrade targets {targets} != {expected}"]
+    return []
 
 
 def assert_job_view(rule: dict[str, Any]) -> list[str]:
@@ -196,6 +260,7 @@ def assert_job_view(rule: dict[str, Any]) -> list[str]:
 
     failures.extend(assert_unified_metric(view, context))
     failures.extend(assert_repair_plan(view, context))
+    failures.extend(assert_upgrade_targets(rule, view, context))
     failures.extend(formula_manifest_failures(manifest, context, job))
     failures.extend(formula_integrity_failures(view, context))
     failures.extend(input_source_failures(view, context))

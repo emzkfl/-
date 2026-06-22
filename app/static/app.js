@@ -148,11 +148,13 @@ function renderProfileIcons(items) {
 function renderScores(data) {
   const summary = data.summary || {};
   const primary = data.primaryMetric || {};
+  const goal = data.goalContract || {};
   const confidence = primary.confidence || {};
   combatPower.textContent = koreanPower(summary.combatPower);
   convertedPower.textContent = formatNumber(primary.value || summary.unifiedConverted380 || summary.hexaConverted380 || summary.converted380);
   metricConfidence.textContent = `${confidence.label || "-"} ${formatNumber(confidence.score || 0)}점`;
-  metricDetail.textContent = `${primary.label || "대표 지표"} 하나로 보스·프리셋·아이템 개선을 계산 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 스탯기여 +${formatNumber(summary.hexaStatGain380 || 0)}`;
+  const goalLabel = goal.label ? ` · 계약 ${goal.label}` : "";
+  metricDetail.textContent = `${primary.label || "대표 지표"} 하나로 보스·프리셋·아이템 개선을 계산${goalLabel} · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 스탯기여 +${formatNumber(summary.hexaStatGain380 || 0)}`;
 }
 
 function presetByNo(rows, no) {
@@ -387,6 +389,7 @@ function renderCoverage(data) {
   const quality = data.apiDataQuality || {};
   const formula = data.formulaDiagnostics || {};
   const primary = data.primaryMetric || {};
+  const goal = data.goalContract || {};
   const readiness = data.readinessAudit || {};
   const confidence = primary.confidence || {};
   const singleMetric = data.singleMetricAudit || {};
@@ -423,6 +426,11 @@ function renderCoverage(data) {
     .slice(0, 3)
     .map((row) => `${row.label || row.target || "-"} ${formatNumber(row.value || 0)}`)
     .join(" · ");
+  const goalUse = [
+    goal.canCompareUsers ? "유저 비교 가능" : "유저 비교 제한",
+    goal.canRecommendItems ? "아이템 추천 가능" : "아이템 추천 제한",
+  ].join(" · ");
+  const goalFailed = (goal.failedCheckIds || []).slice(0, 3).join(" · ");
   const coverageRows = [
     coverageRow(
       "계산 준비도",
@@ -438,6 +446,11 @@ function renderCoverage(data) {
       "단일 지표 연결",
       `${singleMetric.allMatched ? "일치" : "점검 필요"} · ${formatNumber(singleMetric.value || primary.value || 0)}`,
       singleMetricDetail || `${singleMetric.metricId || primary.id || "unifiedConverted380"} · ${singleMetric.basis || primary.basis || "-"}`,
+    ),
+    coverageRow(
+      "목표 계약",
+      `${goal.label || "-"} · ${formatNumber(goal.metricValue || primary.value || 0)}`,
+      `${goal.metricId || primary.id || "unifiedConverted380"} · ${goalUse}${goalFailed ? ` · 실패 ${goalFailed}` : ""}`,
     ),
     coverageRow(
       "계산식 재검산",
@@ -488,6 +501,7 @@ function optionLine(label, value, suffix = "") {
 function renderUpgradePlan(data) {
   const plan = selectedUpgradePlan(data);
   const primary = data.primaryMetric || {};
+  const goal = data.goalContract || {};
   const rows = plan.top || [];
   const targets = (plan.upgradeTargets || []).join("/");
   const presetLabel = selectedPresets.itemPreset ? ` · 장비 ${selectedPresets.itemPreset}/어빌 ${selectedPresets.abilityPreset || "-"}/하이퍼 ${selectedPresets.hyperPreset || "-"}` : "";
@@ -500,7 +514,8 @@ function renderUpgradePlan(data) {
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
   const efficiencyText = efficiency.action ? ` · 효율 ${efficiency.action} +${formatNumber(efficiency.gain || 0)}` : "";
   const reliabilityText = reliability.label ? ` · 추천 ${reliability.label}` : "";
-  upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${reliabilityText}${efficiencyText}${focusText}`;
+  const goalText = goal.label ? ` · 계약 ${goal.label}${goal.canRecommendItems ? "" : "/추천 제한"}` : "";
+  upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${goalText}${presetLabel}${targets ? ` · ${targets}` : ""}${reliabilityText}${efficiencyText}${focusText}`;
   const checklistCards = (plan.repairChecklist || [])
     .slice(0, 3)
     .map((row) => {

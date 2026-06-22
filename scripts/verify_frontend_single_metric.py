@@ -11,6 +11,14 @@ INDEX = ROOT / "app" / "static" / "index.html"
 APP_JS = ROOT / "app" / "static" / "app.js"
 
 
+def function_body(source: str, function_name: str, next_function_name: str) -> str:
+    start = source.find(f"function {function_name}")
+    end = source.find(f"function {next_function_name}", start)
+    if start < 0 or end < 0:
+        raise AssertionError(f"could not locate {function_name} body")
+    return source[start:end]
+
+
 def assert_frontend_single_metric() -> None:
     index = INDEX.read_text(encoding="utf-8")
     app_js = APP_JS.read_text(encoding="utf-8")
@@ -36,10 +44,13 @@ def assert_frontend_single_metric() -> None:
         failures.append("app.js: confidence score is not rendered")
     if "보스·프리셋·아이템 개선" not in app_js:
         failures.append("app.js: single-metric usage explanation missing")
+    if "data.goalContract" not in app_js:
+        failures.append("app.js: goal contract response is not consumed")
+    if "목표 계약" not in app_js:
+        failures.append("app.js: goal contract status is not visible in coverage")
 
-    render_scores_start = app_js.find("function renderScores")
-    render_scores_end = app_js.find("function presetByNo", render_scores_start)
-    render_scores = app_js[render_scores_start:render_scores_end]
+    render_scores = function_body(app_js, "renderScores", "presetByNo")
+    render_coverage = function_body(app_js, "renderCoverage", "optionLine")
     if "convertedPower.textContent" not in render_scores:
         failures.append("renderScores: representative converted score not rendered")
     if "primary.value" not in render_scores:
@@ -48,6 +59,12 @@ def assert_frontend_single_metric() -> None:
         failures.append("renderScores: HEXA source fallback/detail missing")
     if "metricConfidence.textContent" not in render_scores:
         failures.append("renderScores: confidence card not populated")
+    if "goal.label" not in render_scores:
+        failures.append("renderScores: goal contract label is not shown with metric detail")
+    if "goal.canCompareUsers" not in render_coverage or "goal.canRecommendItems" not in render_coverage:
+        failures.append("renderCoverage: goal contract comparison/recommendation flags are not rendered")
+    if "goal.metricValue" not in render_coverage:
+        failures.append("renderCoverage: goal contract metric value is not rendered")
 
     if failures:
         raise AssertionError("\n".join(failures))

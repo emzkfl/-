@@ -20,6 +20,9 @@ REQUIRED_INDEX_MARKERS = {
 
 REQUIRED_RENDER_MARKERS = {
     "selectedUpgradePlan(data)": "selected preset repair plan",
+    "data.goalContract": "goal contract source",
+    "goal.canRecommendItems": "goal contract recommendation gate",
+    "goalText": "goal contract summary text",
     "plan.repairFocus": "primary repair focus",
     "plan.repairChecklist": "ranked repair checklist",
     "plan.repairRoadmap": "projected repair roadmap",

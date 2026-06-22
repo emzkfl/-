@@ -1192,6 +1192,239 @@ def build_boss_board(converted: float) -> list[dict[str, Any]]:
     return result
 
 
+def potential_lines(item: dict[str, Any], additional: bool = False) -> list[str]:
+    prefix = "additional_potential_option" if additional else "potential_option"
+    return [str(item.get(f"{prefix}_{idx}") or "") for idx in (1, 2, 3) if item.get(f"{prefix}_{idx}")]
+
+
+def profile_from_lines(lines: list[str]) -> dict[str, dict[str, float]]:
+    profile = empty_profile()
+    for line in lines:
+        parse_option_line(profile, line)
+    return profile
+
+
+def grade_target_percent(grade: str, weapon_like: bool = False) -> float:
+    text = str(grade or "")
+    if "\ub808\uc804\ub4dc\ub9ac" in text or "legendary" in text.lower():
+        return 21.0 if weapon_like else 27.0
+    if "\uc720\ub2c8\ud06c" in text or "unique" in text.lower():
+        return 12.0 if weapon_like else 18.0
+    if "\uc5d0\ud53d" in text or "epic" in text.lower():
+        return 9.0
+    return 9.0
+
+
+def is_weapon_like_item(item: dict[str, Any]) -> bool:
+    text = " ".join(
+        str(item.get(key) or "")
+        for key in ("item_equipment_slot", "item_equipment_part", "item_name")
+    )
+    return any(keyword in text for keyword in ("\ubb34\uae30", "\ubcf4\uc870\ubb34\uae30", "\uc5e0\ube14\ub818"))
+
+
+def item_upgrade_gain(
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    character_class: str,
+    current_converted: float,
+    delta: dict[str, dict[str, float]],
+) -> float:
+    adjusted = apply_profile_delta(stats, delta)
+    converted = converted_score(
+        adjusted,
+        item_response,
+        character_class=character_class,
+        use_combat_model=False,
+    )
+    return max(0.0, converted["converted"] - current_converted)
+
+
+def gain_scenario(
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    character_class: str,
+    current_converted: float,
+    group: str,
+    key: str,
+    value: float,
+) -> float:
+    delta = empty_profile()
+    add_to_profile(delta, group, key, value)
+    return item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
+
+
+def best_item_upgrade_scenarios(
+    item: dict[str, Any],
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    character_class: str,
+    main_stat: str,
+    attack_type: str,
+    current_converted: float,
+) -> list[dict[str, Any]]:
+    scenarios: list[dict[str, Any]] = []
+    weapon_like = is_weapon_like_item(item)
+    potential_profile = profile_from_lines(potential_lines(item))
+    additional_profile = profile_from_lines(potential_lines(item, additional=True))
+
+    if weapon_like:
+        target_attack_percent = grade_target_percent(str(item.get("potential_option_grade") or ""), True)
+        current_attack_percent = potential_profile["percent"].get(attack_type, 0.0)
+        attack_gap = min(12.0, max(0.0, target_attack_percent - current_attack_percent))
+        if attack_gap > 0:
+            gain = gain_scenario(stats, item_response, character_class, current_converted, "percent", attack_type, attack_gap)
+            scenarios.append(
+                {
+                    "type": "\uc7a0\uc7ac\uc635\uc158",
+                    "action": f"{attack_type} {attack_gap:g}% \ubcf4\uac15",
+                    "gain": gain,
+                    "reason": "\ubb34\uae30\ub958 \uc7a0\uc7ac\uc758 \uacf5\ub9c8% \ubd80\uc871\ubd84",
+                }
+            )
+
+        boss_gap = min(30.0, max(0.0, 30.0 - potential_profile["combat"].get(K_BOSS, 0.0)))
+        if boss_gap > 0 and "\uc5e0\ube14\ub818" not in str(item.get("item_equipment_slot") or ""):
+            gain = gain_scenario(stats, item_response, character_class, current_converted, "combat", K_BOSS, boss_gap)
+            scenarios.append(
+                {
+                    "type": "\uc7a0\uc7ac\uc635\uc158",
+                    "action": f"\ubcf4\uacf5 {boss_gap:g}% \ubcf4\uac15",
+                    "gain": gain,
+                    "reason": "\ubb34\uae30/\ubcf4\uc870\ubb34\uae30 \ubcf4\uc2a4 \ud6a8\uc728 \ubd80\uc871\ubd84",
+                }
+            )
+    else:
+        target_main_percent = grade_target_percent(str(item.get("potential_option_grade") or ""))
+        current_main_percent = potential_profile["percent"].get(main_stat, 0.0)
+        main_gap = min(12.0, max(0.0, target_main_percent - current_main_percent))
+        if main_gap > 0:
+            gain = gain_scenario(stats, item_response, character_class, current_converted, "percent", main_stat, main_gap)
+            scenarios.append(
+                {
+                    "type": "\uc7a0\uc7ac\uc635\uc158",
+                    "action": f"{main_stat} {main_gap:g}% \ubcf4\uac15",
+                    "gain": gain,
+                    "reason": "\uc7a5\ube44 \uc7a0\uc7ac\uc758 \uc8fc\uc2a4\ud0ef% \ubd80\uc871\ubd84",
+                }
+            )
+
+    add_attack = additional_profile["flat"].get(attack_type, 0.0)
+    add_attack_gap = min(10.0, max(0.0, 10.0 - add_attack))
+    if add_attack_gap > 0:
+        gain = gain_scenario(stats, item_response, character_class, current_converted, "flat", attack_type, add_attack_gap)
+        scenarios.append(
+            {
+                "type": "\uc5d0\ub514\uc154\ub110",
+                "action": f"{attack_type} +{add_attack_gap:g} \ubcf4\uac15",
+                "gain": gain,
+                "reason": "\uc5d0\ub514\uc154\ub110 \uacf5\ub9c8 \uae30\uc900 \ubd80\uc871\ubd84",
+            }
+        )
+
+    starforce = int_number(item.get("starforce"))
+    if 0 < starforce < 22:
+        delta = empty_profile()
+        add_to_profile(delta, "flat", main_stat, 7.0)
+        add_to_profile(delta, "flat", attack_type, 2.0)
+        gain = item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
+        scenarios.append(
+            {
+                "type": "\uc2a4\ud0c0\ud3ec\uc2a4",
+                "action": f"{starforce + 1}\uc131 \uc2dc\ub3c4",
+                "gain": gain,
+                "reason": "1\uc131 \uc0c1\uc2b9 \uac00\uc815: \uc8fc\uc2a4\ud0ef +7, \uacf5\ub9c8 +2",
+            }
+        )
+
+    return sorted(scenarios, key=lambda row: row["gain"], reverse=True)
+
+
+def item_contribution(
+    item: dict[str, Any],
+    all_items: list[dict[str, Any]],
+    stats: dict[str, float],
+    character_class: str,
+    current_converted: float,
+) -> float:
+    profile = equipment_profile([item])
+    adjusted = apply_profile_delta(stats, subtract_profiles(empty_profile(), profile))
+    remaining_items = [candidate for candidate in all_items if candidate is not item]
+    item_payload = {"item_equipment": remaining_items or all_items}
+    converted = converted_score(
+        adjusted,
+        item_payload,
+        character_class=character_class,
+        use_combat_model=False,
+    )
+    return max(0.0, current_converted - converted["converted"])
+
+
+def build_item_upgrade_plan(
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    converted: dict[str, Any],
+    character_class: str,
+) -> dict[str, Any]:
+    items = item_response.get("item_equipment") or []
+    current_converted = float(converted.get("converted") or 0.0)
+    main_stat = str(converted.get("mainStat") or choose_main_stat(stats, character_class))
+    attack_type = str(converted.get("attackType") or choose_attack_type(stats, character_class))
+    rows = []
+
+    for item in items:
+        scenarios = best_item_upgrade_scenarios(
+            item,
+            stats,
+            item_response,
+            character_class,
+            main_stat,
+            attack_type,
+            current_converted,
+        )
+        if not scenarios:
+            continue
+        best = scenarios[0]
+        contribution = item_contribution(item, items, stats, character_class, current_converted)
+        rows.append(
+            {
+                "slot": item.get("item_equipment_slot") or item.get("item_equipment_part") or "-",
+                "part": item.get("item_equipment_part") or "-",
+                "name": item.get("item_name") or "-",
+                "icon": item.get("item_icon") or "",
+                "starforce": int_number(item.get("starforce")),
+                "grade": item.get("potential_option_grade") or "",
+                "additionalGrade": item.get("additional_potential_option_grade") or "",
+                "recommendedType": best["type"],
+                "recommendedAction": best["action"],
+                "reason": best["reason"],
+                "expectedGain": round(best["gain"]),
+                "expectedGainPercent": round(best["gain"] / current_converted * 100, 2) if current_converted else 0.0,
+                "contribution": round(contribution),
+                "scenarios": [
+                    {
+                        "type": scenario["type"],
+                        "action": scenario["action"],
+                        "gain": round(scenario["gain"]),
+                    }
+                    for scenario in scenarios[:3]
+                    if scenario["gain"] > 0
+                ],
+            }
+        )
+
+    rows.sort(key=lambda row: (row["expectedGain"], -row["contribution"]), reverse=True)
+    return {
+        "basis": "\ud658\uc0b0(380)",
+        "currentConverted": round(current_converted),
+        "mainStat": main_stat,
+        "attackType": attack_type,
+        "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
+        "top": rows[:8],
+        "all": rows,
+    }
+
+
 def summarize_item(item: dict[str, Any], main_stat: str, attack_type: str) -> dict[str, Any]:
     total = item.get("item_total_option") or {}
     base = item.get("item_base_option") or {}
@@ -1649,10 +1882,12 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     main_stat = converted["mainStat"]
     attack_type = converted["attackType"]
     items = summarize_items(item_response, main_stat, attack_type)
+    item_upgrade_plan = build_item_upgrade_plan(stats, item_response, converted, character_class)
     preset_optimization = optimize_presets(raw, stats, character_class=character_class)
     preset_views = build_preset_views(raw, main_stat, attack_type, preset_optimization)
     boss_basis = round(hexa_converted["converted"])
-    best_converted = preset_optimization.get("best", {}).get("converted", boss_basis)
+    best_preset = preset_optimization.get("best") or {}
+    best_converted = best_preset.get("converted", boss_basis)
     boss_board = build_boss_board(boss_basis)
 
     union = raw.get("union") or {}
@@ -1690,6 +1925,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "hexaConvertedDetail": hexa_converted,
         "presetOptimization": preset_optimization,
         "presetViews": preset_views,
+        "itemUpgradePlan": item_upgrade_plan,
         "bossBoard": boss_board,
         "radar": radar(stats, converted),
         "equipment": items["items"],

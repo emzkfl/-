@@ -29,6 +29,8 @@ const symbolIcons = document.querySelector("#symbol-icons");
 const abilityList = document.querySelector("#ability-list");
 const hyperList = document.querySelector("#hyper-list");
 const extraList = document.querySelector("#extra-list");
+const upgradeSummary = document.querySelector("#upgrade-summary");
+const upgradeList = document.querySelector("#upgrade-list");
 const equipmentSummary = document.querySelector("#equipment-summary");
 const itemList = document.querySelector("#item-list");
 const rawOutput = document.querySelector("#raw-output");
@@ -350,6 +352,44 @@ function optionLine(label, value, suffix = "") {
   return `<span>${escapeHtml(label)} ${formatNumber(value, Number(value) % 1 ? 1 : 0)}${suffix}</span>`;
 }
 
+function renderUpgradePlan(data) {
+  const plan = data.itemUpgradePlan || {};
+  const rows = plan.top || [];
+  upgradeSummary.textContent = `${escapeHtml(plan.basis || "환산(380)")} · ${formatNumber(plan.currentConverted || data.summary?.converted380 || 0)}`;
+  if (!rows.length) {
+    upgradeList.innerHTML = `<article class="upgrade-card empty-card">
+      <strong>추천할 개선 항목이 없습니다</strong>
+      <span>API 장비 정보가 부족하거나 이미 기준치를 만족한 장비입니다.</span>
+    </article>`;
+    return;
+  }
+
+  upgradeList.innerHTML = rows
+    .map((row, index) => {
+      const scenarios = (row.scenarios || [])
+        .map((scenario) => `<em>${escapeHtml(scenario.type)} · ${escapeHtml(scenario.action)} · +${formatNumber(scenario.gain)}</em>`)
+        .join("");
+      return `<article class="upgrade-card">
+        <div class="upgrade-rank">${index + 1}</div>
+        <img src="${escapeHtml(row.icon)}" alt="" />
+        <div class="upgrade-body">
+          <div class="upgrade-head">
+            <span>${escapeHtml(row.slot || row.part || "-")}</span>
+            <b>${escapeHtml(row.name || "-")}</b>
+          </div>
+          <strong>${escapeHtml(row.recommendedType)} · ${escapeHtml(row.recommendedAction)}</strong>
+          <small>${escapeHtml(row.reason || "")}</small>
+          <div class="upgrade-metrics">
+            <span>예상 +${formatNumber(row.expectedGain)} (${formatNumber(row.expectedGainPercent || 0, 2)}%)</span>
+            <span>현재 기여 ${formatNumber(row.contribution)}</span>
+          </div>
+          <div class="upgrade-scenarios">${scenarios}</div>
+        </div>
+      </article>`;
+    })
+    .join("");
+}
+
 function renderItems(data) {
   const summary = data.summary || {};
   const items = selectedEquipment(data);
@@ -433,6 +473,7 @@ function render(data) {
   renderBosses(data);
   renderSide(data);
   renderExtra(data);
+  renderUpgradePlan(data);
   renderItems(data);
   drawRadar(data.radar || {});
   rawOutput.textContent = JSON.stringify(data, null, 2);

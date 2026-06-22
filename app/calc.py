@@ -1033,6 +1033,70 @@ def primary_metric_confidence(
     }
 
 
+def upgrade_plan_reliability(
+    plan: dict[str, Any],
+    api_quality: dict[str, Any],
+    confidence: dict[str, Any],
+    formula_quality: dict[str, Any],
+) -> dict[str, Any]:
+    reasons: list[str] = []
+    required_missing = set(api_quality.get("missingRequiredSections") or [])
+    optional_missing = set(api_quality.get("missingOptionalSections") or [])
+    warning_count = int_number(api_quality.get("warningCount"))
+    confidence_score = int_number(confidence.get("score"))
+    formula_status = str(formula_quality.get("status") or "")
+
+    if required_missing:
+        reasons.append("필수 API 데이터가 누락되어 추천을 진단용으로만 봐야 합니다.")
+    if "stat" in required_missing:
+        reasons.append("종합 능력치 API가 없어 스탯 효율을 재계산할 수 없습니다.")
+    if "itemEquipment" in required_missing:
+        reasons.append("장착 장비 API가 없어 장비별 개선 순서를 신뢰할 수 없습니다.")
+    if formula_status != "complete":
+        reasons.append("직업 상세식이 완전 적용되지 않아 추천 우선순위가 흔들릴 수 있습니다.")
+    if warning_count:
+        reasons.append("선택 API 조회 경고가 있어 HEXA/프리셋/보조 정보가 일부 빠졌을 수 있습니다.")
+    if {"hexamatrix", "hexamatrixStat"} & optional_missing:
+        reasons.append("HEXA 데이터 일부가 없어 헥사환산 기준 추천 정확도가 낮아질 수 있습니다.")
+    if not plan.get("top"):
+        reasons.append("추천 가능한 장비 후보가 없거나 장비 옵션 데이터가 부족합니다.")
+
+    if required_missing or "itemEquipment" in required_missing:
+        status = "blocked"
+        label = "추천 제한"
+    elif confidence_score < 70 or formula_status != "complete":
+        status = "diagnostic"
+        label = "진단용"
+    elif warning_count or optional_missing:
+        status = "caution"
+        label = "주의"
+    else:
+        status = "ready"
+        label = "추천 가능"
+
+    return {
+        "status": status,
+        "label": label,
+        "score": confidence_score,
+        "apiStatus": api_quality.get("status") or "",
+        "formulaStatus": formula_status,
+        "warningCount": warning_count,
+        "missingRequiredSections": sorted(required_missing),
+        "missingOptionalSections": sorted(optional_missing),
+        "reasons": reasons or ["필수 API와 직업 공식이 정상 적용되어 추천을 사용할 수 있습니다."],
+    }
+
+
+def attach_upgrade_reliability(
+    plan: dict[str, Any],
+    api_quality: dict[str, Any],
+    confidence: dict[str, Any],
+    formula_quality: dict[str, Any],
+) -> dict[str, Any]:
+    plan["reliability"] = upgrade_plan_reliability(plan, api_quality, confidence, formula_quality)
+    return plan
+
+
 def combat_power_converted_score(stats: dict[str, float], character_class: str | None) -> dict[str, Any]:
     combat_power = exact_combat_power(stats)
     if combat_power <= 0:
@@ -3118,6 +3182,9 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     union = raw.get("union") or {}
     api_quality = api_data_quality(raw)
     confidence = primary_metric_confidence(formula_quality, api_quality, coverage)
+    attach_upgrade_reliability(item_upgrade_plan, api_quality, confidence, formula_quality)
+    for preset_plan in preset_upgrade_plans:
+        attach_upgrade_reliability(preset_plan.get("plan") or {}, api_quality, confidence, formula_quality)
     primary_metric = {
         "id": "unifiedConverted380",
         "label": "대표 환산(380)",

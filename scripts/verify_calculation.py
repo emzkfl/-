@@ -191,6 +191,11 @@ def assert_full_job_view_models() -> None:
             failures.append(f"{job}: no repair checklist")
         elif not plan["repairChecklist"][0]["description"]:
             failures.append(f"{job}: repair checklist has no action description")
+        reliability = plan.get("reliability") or {}
+        if reliability.get("status") not in {"ready", "caution", "diagnostic", "blocked"}:
+            failures.append(f"{job}: upgrade reliability status missing {reliability}")
+        if not reliability.get("reasons"):
+            failures.append(f"{job}: upgrade reliability reasons missing")
         if not view["bossBoard"]:
             failures.append(f"{job}: no boss board")
         if view["apiDataQuality"]["requiredPresent"] != 3:
@@ -343,6 +348,9 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["repairChecklist"]
     assert view["itemUpgradePlan"]["repairChecklist"][0]["rank"] == 1
     assert view["itemUpgradePlan"]["repairChecklist"][0]["expectedGain"] > 0
+    assert view["itemUpgradePlan"]["reliability"]["status"] in {"caution", "ready"}
+    assert view["itemUpgradePlan"]["reliability"]["score"] == view["primaryMetric"]["confidence"]["score"]
+    assert view["itemUpgradePlan"]["reliability"]["reasons"]
     assert view["calculationAudit"]["rows"]
     assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])
@@ -457,6 +465,7 @@ def assert_preset_metric_basis() -> None:
     current_plan = next(row for row in view["presetUpgradePlans"] if row["isCurrent"])
     assert current_plan["converted"] == view["summary"]["unifiedConverted380"]
     assert current_plan["plan"]["basis"] == view["summary"]["unifiedBasis"]
+    assert current_plan["plan"]["reliability"]["status"] in {"caution", "ready"}
     assert current_plan["plan"]["presetSelection"] == {
         "itemPreset": current_plan["itemPreset"],
         "abilityPreset": current_plan["abilityPreset"],
@@ -468,6 +477,7 @@ def assert_preset_metric_basis() -> None:
     assert second_plan["plan"]["presetSelection"]["itemPreset"] == 2
     assert second_plan["plan"]["presetSelection"]["abilityPreset"] == second_plan["abilityPreset"]
     assert second_plan["plan"]["presetSelection"]["hyperPreset"] == second_plan["hyperPreset"]
+    assert second_plan["plan"]["reliability"]["score"] == view["primaryMetric"]["confidence"]["score"]
     assert second_plan["plan"]["slotSummary"]
 
 
@@ -485,6 +495,8 @@ def assert_api_warning_diagnostics() -> None:
     assert view["summary"]["apiWarningCount"] == 1
     assert view["primaryMetric"]["confidence"]["score"] < 90
     assert any("경고" in reason for reason in view["primaryMetric"]["confidence"]["reasons"])
+    assert view["itemUpgradePlan"]["reliability"]["status"] == "caution"
+    assert any("경고" in reason for reason in view["itemUpgradePlan"]["reliability"]["reasons"])
 
 
 def assert_unknown_job_formula_diagnostics() -> None:

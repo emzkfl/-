@@ -457,9 +457,11 @@ function renderUpgradePlan(data) {
   const presetLabel = selectedPresets.itemPreset ? ` · 장비 ${selectedPresets.itemPreset}/어빌 ${selectedPresets.abilityPreset || "-"}/하이퍼 ${selectedPresets.hyperPreset || "-"}` : "";
   const focus = plan.repairFocus || {};
   const efficiency = plan.primaryEfficiency || {};
+  const reliability = plan.reliability || {};
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
   const efficiencyText = efficiency.action ? ` · 효율 ${efficiency.action} +${formatNumber(efficiency.gain || 0)}` : "";
-  upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${efficiencyText}${focusText}`;
+  const reliabilityText = reliability.label ? ` · 추천 ${reliability.label}` : "";
+  upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${reliabilityText}${efficiencyText}${focusText}`;
   const checklistCards = (plan.repairChecklist || [])
     .slice(0, 3)
     .map((row) => `<article class="upgrade-slot priority">
@@ -469,6 +471,13 @@ function renderUpgradePlan(data) {
       <em>${escapeHtml(row.item || "-")}${row.weakness?.label ? ` · ${escapeHtml(row.weakness.label)}` : ""}</em>
     </article>`)
     .join("");
+  const reliabilityCard = reliability.label
+    ? `<article class="upgrade-slot priority">
+      <span>추천 신뢰도 · ${escapeHtml(reliability.label)}</span>
+      <strong>${formatNumber(reliability.score || 0)}점</strong>
+      <small>${escapeHtml((reliability.reasons || [])[0] || "추천 신뢰도 정보 없음")}</small>
+    </article>`
+    : "";
   const slotCards = (plan.slotSummary || [])
     .slice(0, 4)
     .map((slot) => `<article class="upgrade-slot">
@@ -478,7 +487,7 @@ function renderUpgradePlan(data) {
       <em>${escapeHtml(slot.bestItem || "-")}${slot.topWeakness ? ` · ${escapeHtml(slot.topWeakness)}` : ""}</em>
     </article>`)
     .join("");
-  upgradeSlotList.innerHTML = checklistCards + slotCards;
+  upgradeSlotList.innerHTML = reliabilityCard + checklistCards + slotCards;
   const efficiencyCards = (plan.efficiencyProfile || [])
     .slice(0, 4)
     .map((row) => `<article class="upgrade-category">

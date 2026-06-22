@@ -371,6 +371,7 @@ function renderExtra(data) {
     extraRow("V코어", counts.vCores, previewNames(extra.vCores)),
     extraRow("HEXA 코어", counts.hexaCores, previewNames(extra.hexaCores)),
     extraRow("HEXA 스탯", counts.hexaStatCores, counts.hexaStatCores ? "설정 정보 수집됨" : "정보 없음"),
+    extraRow("기타 능력치", counts.otherStats, previewNames(extra.otherStats)),
   ].join("");
 }
 

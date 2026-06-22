@@ -119,6 +119,7 @@ API_OPTIONAL_SECTIONS = (
     "ability",
     "setEffect",
     "hyperStat",
+    "otherStat",
     "hexamatrixStat",
     "union",
     "petEquipment",
@@ -138,6 +139,7 @@ API_SECTION_LABELS = {
     "ability": "어빌리티",
     "setEffect": "세트 효과",
     "hyperStat": "하이퍼스탯",
+    "otherStat": "기타 능력치",
     "hexamatrixStat": "HEXA 스탯",
     "union": "유니온",
     "petEquipment": "펫 장비",
@@ -2675,11 +2677,48 @@ def summarize_skills(raw: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def summarize_other_stats(other_response: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    if not isinstance(other_response, dict):
+        return rows
+
+    for source, value in other_response.items():
+        candidates = value if isinstance(value, list) else [value]
+        for candidate in candidates:
+            if isinstance(candidate, dict):
+                name = (
+                    candidate.get("stat_name")
+                    or candidate.get("name")
+                    or candidate.get("type")
+                    or candidate.get("option_name")
+                    or source
+                )
+                stat_value = (
+                    candidate.get("stat_value")
+                    or candidate.get("value")
+                    or candidate.get("description")
+                    or candidate.get("option_value")
+                    or ""
+                )
+            elif candidate not in (None, "", [], {}):
+                name = source
+                stat_value = candidate
+            else:
+                continue
+
+            rows.append({"name": str(name), "value": str(stat_value), "source": str(source)})
+            if len(rows) >= 12:
+                return rows
+
+    return rows
+
+
 def summarize_extra(raw: dict[str, Any]) -> dict[str, Any]:
     link_response = raw.get("linkSkill") or {}
     vmatrix_response = raw.get("vmatrix") or {}
     hexamatrix_response = raw.get("hexamatrix") or {}
     hexa_stat_response = raw.get("hexamatrixStat") or {}
+    other_response = raw.get("otherStat") or {}
     exchange_ring = raw.get("ringExchangeSkillEquipment") or {}
     reserve_ring = raw.get("ringReserveSkillEquipment") or {}
 
@@ -2717,21 +2756,25 @@ def summarize_extra(raw: dict[str, Any]) -> dict[str, Any]:
             )
 
     skills = summarize_skills(raw)
+    pets = summarize_pets(raw.get("petEquipment") or {})
+    other_stats = summarize_other_stats(other_response)
     return {
-        "pets": summarize_pets(raw.get("petEquipment") or {}),
+        "pets": pets,
         "linkSkills": summarize_named_rows(link_rows, ("skill_name", "link_skill_name"), ("skill_icon",)),
         "skills": skills,
         "vCores": summarize_named_rows(v_rows, ("v_core_name",), ("v_core_icon",)),
         "hexaCores": summarize_named_rows(hexa_rows, ("hexa_core_name",), ("hexa_core_icon",)),
         "hexaStatCores": hexa_stat_rows,
+        "otherStats": other_stats,
         "rings": rings,
         "counts": {
-            "pets": len(summarize_pets(raw.get("petEquipment") or {})),
+            "pets": len(pets),
             "linkSkills": len(link_rows),
             "skills": len(skills),
             "vCores": len(v_rows),
             "hexaCores": len(hexa_rows),
             "hexaStatCores": len(hexa_stat_rows),
+            "otherStats": len(other_stats),
             "rings": len(rings),
         },
     }

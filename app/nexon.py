@@ -114,6 +114,7 @@ ENDPOINTS = {
     "ability": "/character/ability",
     "setEffect": "/character/set-effect",
     "hyperStat": "/character/hyper-stat",
+    "otherStat": "/character/other-stat",
     "hexamatrixStat": "/character/hexamatrix-stat",
     "union": "/user/union",
     "petEquipment": "/character/pet-equipment",

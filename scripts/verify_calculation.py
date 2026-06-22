@@ -214,6 +214,11 @@ def assert_sample_view_model() -> None:
                 },
             ]
         },
+        "otherStat": {
+            "character_other_stat": [
+                {"stat_name": "검증 기타", "stat_value": "+1"},
+            ]
+        },
     }
     view = build_view_model(raw)
     coverage = view["calculationCoverage"]
@@ -223,7 +228,10 @@ def assert_sample_view_model() -> None:
     assert api_quality["requiredPresent"] == 3
     assert api_quality["requiredTotal"] == 3
     assert api_quality["missingRequiredSections"] == []
+    assert "otherStat" in api_quality["presentSections"]
     assert api_quality["warningCount"] == 0
+    assert view["extra"]["counts"]["otherStats"] == 1
+    assert view["extra"]["otherStats"][0]["name"] == "검증 기타"
     assert view["summary"]["apiQualityPercent"] == api_quality["qualityPercent"]
     assert view["summary"]["apiWarningCount"] == api_quality["warningCount"]
     assert view["summary"]["formulaStatus"] == "complete"

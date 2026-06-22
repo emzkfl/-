@@ -148,10 +148,11 @@ function renderProfileIcons(items) {
 function renderScores(data) {
   const summary = data.summary || {};
   const primary = data.primaryMetric || {};
+  const confidence = primary.confidence || {};
   combatPower.textContent = koreanPower(summary.combatPower);
   convertedPower.textContent = formatNumber(primary.value || summary.unifiedConverted380 || summary.hexaConverted380 || summary.converted380);
   hexaPower.textContent = formatNumber(summary.hexaConverted380);
-  hexaDetail.textContent = `${primary.label || "대표 지표"} 기준 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 완성도 ${formatNumber(summary.hexaCompletionPercent || 100, 2)}%`;
+  hexaDetail.textContent = `${primary.label || "대표 지표"} 기준 · 신뢰도 ${confidence.label || "-"} ${formatNumber(confidence.score || 0)}점 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)}`;
 }
 
 function presetByNo(rows, no) {
@@ -378,6 +379,8 @@ function renderCoverage(data) {
   const audit = data.calculationAudit || {};
   const quality = data.apiDataQuality || {};
   const formula = data.formulaDiagnostics || {};
+  const primary = data.primaryMetric || {};
+  const confidence = primary.confidence || {};
   const presetQuality = quality.presetSections || {};
   const current = coverage.current || {};
   const total = coverage.targetJobs || 0;
@@ -403,7 +406,13 @@ function renderCoverage(data) {
     fallback: "임시 계산",
   }[formula.status] || "-";
   const formulaMissingPreview = (formula.missingTables || []).slice(0, 4).join(" · ");
+  const confidenceReasons = (confidence.reasons || []).slice(0, 3).join(" · ");
   const coverageRows = [
+    coverageRow(
+      "대표 지표 신뢰도",
+      `${confidence.label || "-"} · ${formatNumber(confidence.score || 0)}점`,
+      confidenceReasons || primary.description || "대표 환산 신뢰도",
+    ),
     coverageRow(
       "직업 공식",
       `${formula.matchedJob || current.job || "-"} · ${formulaStatus}`,

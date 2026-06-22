@@ -110,9 +110,14 @@ def assert_full_job_view_models() -> None:
 
         summary = view["summary"]
         primary = view["primaryMetric"]
+        confidence = primary["confidence"]
         coverage = view["calculationCoverage"]["current"]
         formula = view["formulaDiagnostics"]
         plan = view["itemUpgradePlan"]
+        if confidence["score"] < 70:
+            failures.append(f"{job}: primary metric confidence too low {confidence}")
+        if not confidence["reasons"]:
+            failures.append(f"{job}: primary metric confidence reasons missing")
         if primary["value"] != summary["unifiedConverted380"]:
             failures.append(f"{job}: primary metric does not match unified score")
         if primary["usedBy"]["bossBoard"] != primary["value"]:
@@ -214,6 +219,7 @@ def assert_sample_view_model() -> None:
     coverage = view["calculationCoverage"]
     api_quality = view["apiDataQuality"]
     primary = view["primaryMetric"]
+    confidence = primary["confidence"]
     assert api_quality["requiredPresent"] == 3
     assert api_quality["requiredTotal"] == 3
     assert api_quality["missingRequiredSections"] == []
@@ -230,6 +236,9 @@ def assert_sample_view_model() -> None:
     assert primary["usedBy"]["itemUpgradePlan"] == primary["value"]
     assert primary["usedBy"]["presetOptimization"] == primary["value"]
     assert primary["comparison"]["hexaConverted380"] == primary["value"]
+    assert confidence["score"] >= 70
+    assert confidence["level"] in {"high", "medium"}
+    assert confidence["reasons"]
     assert coverage["targetJobs"] >= 48
     assert coverage["current"]["job"] == "레테"
     assert view["summary"]["mainStat"] == "INT"
@@ -376,6 +385,8 @@ def assert_api_warning_diagnostics() -> None:
     assert quality["missingRequiredSections"] == []
     assert "vmatrix" in quality["missingOptionalSections"]
     assert view["summary"]["apiWarningCount"] == 1
+    assert view["primaryMetric"]["confidence"]["score"] < 90
+    assert any("경고" in reason for reason in view["primaryMetric"]["confidence"]["reasons"])
 
 
 def assert_unknown_job_formula_diagnostics() -> None:
@@ -388,6 +399,8 @@ def assert_unknown_job_formula_diagnostics() -> None:
     assert view["summary"]["formulaStatus"] == "fallback"
     assert view["summary"]["unifiedConverted380"] > 0
     assert view["itemUpgradePlan"]["repairChecklist"]
+    assert view["primaryMetric"]["confidence"]["level"] in {"low", "critical"}
+    assert any("미지원" in reason for reason in view["primaryMetric"]["confidence"]["reasons"])
 
 
 def main() -> None:

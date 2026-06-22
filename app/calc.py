@@ -962,6 +962,71 @@ def formula_diagnostics(
     }
 
 
+def primary_metric_confidence(
+    formula_quality: dict[str, Any],
+    api_quality: dict[str, Any],
+    coverage: dict[str, Any],
+) -> dict[str, Any]:
+    score = 100.0
+    reasons = []
+
+    formula_status = str(formula_quality.get("status") or "")
+    if formula_status == "fallback":
+        score -= 45
+        reasons.append("미지원 직업 공식으로 임시 계산 중입니다.")
+    elif formula_status == "partial":
+        score -= 20
+        reasons.append("직업 공식의 일부 보정 표가 부족합니다.")
+
+    if not formula_quality.get("knownJobsCovered"):
+        score -= 15
+        reasons.append("KMS 직업 테이블에 누락된 공식이 있습니다.")
+
+    required_total = int_number(api_quality.get("requiredTotal"))
+    required_present = int_number(api_quality.get("requiredPresent"))
+    if required_present < required_total:
+        score -= 35
+        reasons.append("필수 Nexon API 데이터가 일부 누락되었습니다.")
+    elif int_number(api_quality.get("warningCount")):
+        penalty = min(20, int_number(api_quality.get("warningCount")) * 5)
+        score -= penalty
+        reasons.append("선택 Nexon API 조회 경고가 있습니다.")
+
+    missing_optional_count = len(api_quality.get("missingOptionalSections") or [])
+    if missing_optional_count:
+        score -= min(10, missing_optional_count)
+        reasons.append("선택 API 데이터 일부가 없어 보조 정보 정확도가 낮아질 수 있습니다.")
+
+    current = coverage.get("current") or {}
+    calibration = current.get("calibrationEvidence") or {}
+    sample_error = float(calibration.get("sampleErrorPercent") or 0.0)
+    if sample_error > 0.5:
+        score -= min(15, sample_error)
+        reasons.append(f"직업 보정 표본 오차가 {sample_error:.2f}%입니다.")
+
+    score = max(0, min(100, round(score)))
+    if score >= 90:
+        level = "high"
+        label = "높음"
+    elif score >= 70:
+        level = "medium"
+        label = "보통"
+    elif score >= 50:
+        level = "low"
+        label = "낮음"
+    else:
+        level = "critical"
+        label = "주의"
+
+    return {
+        "score": score,
+        "level": level,
+        "label": label,
+        "reasons": reasons or ["직업 공식과 필수 API 데이터가 정상 적용되었습니다."],
+        "calibrationSampleErrorPercent": round(sample_error, 4),
+    }
+
+
 def combat_power_converted_score(stats: dict[str, float], character_class: str | None) -> dict[str, Any]:
     combat_power = exact_combat_power(stats)
     if combat_power <= 0:
@@ -2833,6 +2898,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
 
     union = raw.get("union") or {}
     api_quality = api_data_quality(raw)
+    confidence = primary_metric_confidence(formula_quality, api_quality, coverage)
     primary_metric = {
         "id": "unifiedConverted380",
         "label": "대표 환산(380)",
@@ -2842,7 +2908,8 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "armor": ARMOR,
         "source": "hexaConverted380",
         "description": "보스 가능 여부, 아이템 개선 순서, 프리셋 비교에 공통으로 쓰는 단일 대표 지표입니다.",
-        "status": "ready" if formula_quality["status"] == "complete" and api_quality["requiredPresent"] == api_quality["requiredTotal"] else "diagnostic",
+        "status": "ready" if confidence["score"] >= 90 else "diagnostic",
+        "confidence": confidence,
         "diagnostics": {
             "formulaStatus": formula_quality["status"],
             "apiStatus": api_quality["status"],

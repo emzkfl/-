@@ -26,6 +26,7 @@ from app.calc import (  # noqa: E402
     choose_main_stat,
     job_converted_multiplier,
     job_detail_rule,
+    primary_job_name,
 )
 
 
@@ -116,6 +117,11 @@ def assert_ranking_samples(data: dict[str, Any]) -> None:
             problems.append(f"{job}: expected at least 30 ranking samples, got {len(rows)}")
         if rows and rows[0].get("job") != job:
             problems.append(f"{job}: first ranking sample job is {rows[0].get('job')!r}")
+        for row in rows[:30]:
+            sample_job = str(row.get("job") or row.get("class") or "")
+            matched_job = primary_job_name(job_detail_rule(sample_job))
+            if matched_job != job:
+                problems.append(f"{job}/{row.get('name')}: sample job {sample_job!r} resolves to {matched_job!r}")
 
     if problems:
         raise AssertionError("\n".join(problems))
@@ -167,6 +173,9 @@ def assert_special_job_samples(data: dict[str, Any]) -> None:
     for row in rows:
         job = str(row.get("job") or "")
         jobs.add(job)
+        matched_job = primary_job_name(job_detail_rule(job))
+        if matched_job != job:
+            problems.append(f"{job}/{row.get('name')}: special job resolves to {matched_job!r}")
         origin = float(row.get("originConverted") or 0.0)
         if origin <= 0:
             problems.append(f"{job}/{row.get('name')}: originConverted missing")

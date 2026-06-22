@@ -15,6 +15,8 @@ from app.calc import (  # noqa: E402
     SPECIAL_COMBAT_CONVERTED_MODELS,
     build_view_model,
     calculation_coverage,
+    job_detail_rule,
+    primary_job_name,
 )
 
 
@@ -25,6 +27,7 @@ def table_jobs(rows: list[dict] | tuple[dict, ...]) -> set[str]:
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
+    aliases: dict[str, str] = {}
     if len(KMS_JOB_NAMES) != len(job_set):
         failures.append("KMS_JOB_NAMES has duplicate entries")
     if len(JOB_DETAIL_RULES) != len(KMS_JOB_NAMES):
@@ -48,6 +51,22 @@ def assert_job_table_integrity() -> None:
 
     for rule in JOB_DETAIL_RULES:
         job = str(rule["keywords"][0])
+        for keyword in rule["keywords"]:
+            keyword = str(keyword)
+            if keyword in aliases:
+                failures.append(f"{job}: duplicate alias {keyword!r} already used by {aliases[keyword]}")
+            aliases[keyword] = job
+
+            matched = job_detail_rule(keyword)
+            matched_job = primary_job_name(matched)
+            if matched_job != job:
+                failures.append(f"{job}: alias {keyword!r} resolves to {matched_job!r}")
+
+            decorated = f"Lv.285 {keyword} 검증"
+            decorated_match = primary_job_name(job_detail_rule(decorated))
+            if decorated_match != job:
+                failures.append(f"{job}: decorated alias {decorated!r} resolves to {decorated_match!r}")
+
         if not rule.get("mainStat"):
             failures.append(f"{job}: mainStat missing")
         if not rule.get("attackType"):

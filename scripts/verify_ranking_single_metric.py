@@ -45,12 +45,21 @@ def assert_ranking_single_metric() -> None:
 
             view = build_view_model(special_sample_raw(row))
             primary = view.get("primaryMetric") or {}
+            contract = view.get("goalContract") or {}
             summary = view.get("summary") or {}
             converted = float(primary.get("value") or 0.0)
             model = str(summary.get("convertedModel") or "")
 
             if converted <= 0:
                 failures.append(f"{context}: representative metric is zero")
+            if contract.get("metricValue") != primary.get("value"):
+                failures.append(f"{context}: goal contract metric mismatch")
+            if contract.get("canCompareUsers") is not True:
+                failures.append(f"{context}: goal contract should allow user comparison")
+            if contract.get("canRecommendItems") is not False:
+                failures.append(f"{context}: goal contract should block item recommendation without item details")
+            if contract.get("failedCheckIds") != ["itemRepair"]:
+                failures.append(f"{context}: goal contract failed ids mismatch {contract.get('failedCheckIds')}")
             if "combat" not in model:
                 failures.append(f"{context}: ranking fallback did not use combat model ({model})")
             if primary.get("id") != "unifiedConverted380":

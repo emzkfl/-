@@ -21,6 +21,7 @@ from scripts.verify_calculation import (  # noqa: E402
 
 REQUIRED_VIEW_KEYS = {
     "primaryMetric",
+    "goalContract",
     "summary",
     "bossBoard",
     "itemUpgradePlan",
@@ -228,6 +229,97 @@ def assert_upgrade_targets(rule: dict[str, Any], view: dict[str, Any], context: 
     return []
 
 
+def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
+    contract = view.get("goalContract") or {}
+    primary = view.get("primaryMetric") or {}
+    summary = view.get("summary") or {}
+    plan = view.get("itemUpgradePlan") or {}
+    formula_manifest = view.get("jobFormulaManifest") or {}
+    current_formula = formula_manifest.get("current") or {}
+    failures: list[str] = []
+
+    required_keys = {
+        "version",
+        "status",
+        "metricId",
+        "metricValue",
+        "basis",
+        "source",
+        "canCompareUsers",
+        "canRecommendItems",
+        "usedBy",
+        "repairFocus",
+        "repairChecklistCount",
+        "jobFormulaCount",
+        "currentJob",
+        "fieldPaths",
+        "checks",
+        "failedCheckIds",
+    }
+    missing = sorted(required_keys - set(contract))
+    if missing:
+        failures.append(f"{context}: goal contract missing keys {missing}")
+        return failures
+
+    if contract.get("version") != "single_metric_repair_v1":
+        failures.append(f"{context}: goal contract version mismatch")
+    if contract.get("metricId") != "unifiedConverted380":
+        failures.append(f"{context}: goal contract metric id mismatch")
+    if contract.get("metricValue") != primary.get("value"):
+        failures.append(f"{context}: goal contract metric value mismatch")
+    if contract.get("metricValue") != summary.get("unifiedConverted380"):
+        failures.append(f"{context}: goal contract summary value mismatch")
+    if contract.get("basis") != summary.get("unifiedBasis"):
+        failures.append(f"{context}: goal contract basis mismatch")
+    if contract.get("source") != primary.get("source"):
+        failures.append(f"{context}: goal contract source mismatch")
+    if contract.get("jobFormulaCount") != len(KMS_JOB_NAMES):
+        failures.append(f"{context}: goal contract job formula count mismatch")
+    if contract.get("currentJob") != current_formula.get("job"):
+        failures.append(f"{context}: goal contract current job mismatch")
+    if contract.get("repairFocus") != plan.get("repairFocus"):
+        failures.append(f"{context}: goal contract repair focus mismatch")
+    if contract.get("repairChecklistCount") != len(plan.get("repairChecklist") or []):
+        failures.append(f"{context}: goal contract checklist count mismatch")
+
+    used_by = contract.get("usedBy") or {}
+    if used_by.get("bossBoard") != primary.get("usedBy", {}).get("bossBoard"):
+        failures.append(f"{context}: goal contract boss metric mismatch")
+    if used_by.get("itemUpgradePlan") != plan.get("currentConverted"):
+        failures.append(f"{context}: goal contract repair metric mismatch")
+    if not contract.get("canCompareUsers"):
+        failures.append(f"{context}: goal contract does not allow user comparison")
+    if not contract.get("canRecommendItems"):
+        failures.append(f"{context}: goal contract does not allow item recommendation")
+    if contract.get("status") not in {"ready", "caution"}:
+        failures.append(f"{context}: goal contract status is {contract.get('status')!r}")
+
+    checks = contract.get("checks") or []
+    check_ids = {row.get("id") for row in checks}
+    expected_check_ids = {"metricConfidence", "singleMetric", "kmsJobFormula", "apiInput", "itemRepair"}
+    if check_ids != expected_check_ids:
+        failures.append(f"{context}: goal contract checks mismatch {check_ids}")
+    failed_ids = [row.get("id") for row in checks if not row.get("passed")]
+    if failed_ids != contract.get("failedCheckIds"):
+        failures.append(f"{context}: goal contract failed ids mismatch")
+    if contract.get("failedCheckIds"):
+        failures.append(f"{context}: goal contract has failed checks {contract.get('failedCheckIds')}")
+
+    field_paths = contract.get("fieldPaths") or {}
+    expected_paths = {
+        "representativeMetric": "primaryMetric.value",
+        "bossMetric": "bossBoard[0].currentConverted",
+        "presetMetric": "presetOptimization.current.converted",
+        "repairMetric": "itemUpgradePlan.currentConverted",
+        "repairFocus": "itemUpgradePlan.repairFocus",
+        "repairChecklist": "itemUpgradePlan.repairChecklist",
+    }
+    if field_paths != expected_paths:
+        failures.append(f"{context}: goal contract field paths mismatch")
+
+    return failures
+
+
 def assert_job_view(rule: dict[str, Any]) -> list[str]:
     job = str(rule["keywords"][0])
     view = build_view_model(rule_sample_raw(rule))
@@ -261,6 +353,7 @@ def assert_job_view(rule: dict[str, Any]) -> list[str]:
     failures.extend(assert_unified_metric(view, context))
     failures.extend(assert_repair_plan(view, context))
     failures.extend(assert_upgrade_targets(rule, view, context))
+    failures.extend(assert_goal_contract(view, context))
     failures.extend(formula_manifest_failures(manifest, context, job))
     failures.extend(formula_integrity_failures(view, context))
     failures.extend(input_source_failures(view, context))

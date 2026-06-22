@@ -52,6 +52,13 @@ def assert_server_http_contract() -> None:
             "date": date,
             "basic": {"character_name": character_name},
             "primaryMetric": {"id": "unifiedConverted380", "value": 123456},
+            "goalContract": {
+                "version": "single_metric_repair_v1",
+                "metricId": "unifiedConverted380",
+                "metricValue": 123456,
+                "canCompareUsers": True,
+                "canRecommendItems": True,
+            },
             "summary": {"unifiedConverted380": 123456},
             "itemUpgradePlan": {
                 "currentConverted": 123456,
@@ -85,6 +92,10 @@ def assert_server_http_contract() -> None:
             raise AssertionError(f"character response status mismatch: {status} {body}")
         if body.get("primaryMetric", {}).get("id") != "unifiedConverted380":
             raise AssertionError(f"character response primary metric missing: {body}")
+        if body.get("goalContract", {}).get("version") != "single_metric_repair_v1":
+            raise AssertionError(f"character response goal contract missing: {body}")
+        if body.get("goalContract", {}).get("metricValue") != body.get("primaryMetric", {}).get("value"):
+            raise AssertionError(f"character response goal contract metric mismatch: {body}")
         if body.get("summary", {}).get("unifiedConverted380") != body.get("primaryMetric", {}).get("value"):
             raise AssertionError(f"character response single metric mismatch: {body}")
         if body.get("itemUpgradePlan", {}).get("currentConverted") != body.get("primaryMetric", {}).get("value"):

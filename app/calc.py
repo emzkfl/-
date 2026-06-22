@@ -2136,6 +2136,100 @@ def build_readiness_audit(
     }
 
 
+def build_goal_contract(
+    primary_metric: dict[str, Any],
+    single_metric_audit: dict[str, Any],
+    formula_quality: dict[str, Any],
+    input_source_audit: dict[str, Any],
+    item_upgrade_plan: dict[str, Any],
+    formula_manifest: dict[str, Any],
+) -> dict[str, Any]:
+    confidence = primary_metric.get("confidence") or {}
+    used_by = primary_metric.get("usedBy") or {}
+    metric_value = int_number(primary_metric.get("value"))
+    repair_audit = item_upgrade_plan.get("repairAudit") or {}
+    repair_focus = item_upgrade_plan.get("repairFocus") or {}
+    current_formula = formula_manifest.get("current") or {}
+    job_count = int_number(formula_manifest.get("jobCount"))
+    checks = [
+        {
+            "id": "metricConfidence",
+            "label": "대표 지표 신뢰도",
+            "passed": int_number(confidence.get("score")) >= 70,
+            "detail": f"{confidence.get('label') or '-'} · {int_number(confidence.get('score'))}점",
+        },
+        {
+            "id": "singleMetric",
+            "label": "단일 지표 연결",
+            "passed": bool(single_metric_audit.get("allMatched")),
+            "detail": f"{single_metric_audit.get('metricId') or primary_metric.get('id') or '-'} · {metric_value}",
+        },
+        {
+            "id": "kmsJobFormula",
+            "label": "KMS 직업별 계산식",
+            "passed": formula_quality.get("status") == "complete" and bool(current_formula.get("matched")) and job_count >= 48,
+            "detail": f"{formula_quality.get('matchedJob') or current_formula.get('job') or '-'} · {job_count}직업",
+        },
+        {
+            "id": "apiInput",
+            "label": "Nexon API 필수 입력",
+            "passed": bool(input_source_audit.get("allRequiredPresent")),
+            "detail": f"{int_number(input_source_audit.get('usageCount'))}개 사용처 · {input_source_audit.get('status') or '-'}",
+        },
+        {
+            "id": "itemRepair",
+            "label": "아이템 개선 판단",
+            "passed": bool(repair_audit.get("allPassed"))
+            and bool(item_upgrade_plan.get("repairChecklist"))
+            and bool(repair_focus.get("slot") or repair_focus.get("description")),
+            "detail": f"{repair_focus.get('slot') or '-'} · {repair_focus.get('description') or '-'}",
+        },
+    ]
+    passed = {row["id"]: bool(row["passed"]) for row in checks}
+    can_compare_users = all(passed.get(key) for key in ("metricConfidence", "singleMetric", "kmsJobFormula", "apiInput"))
+    can_recommend_items = can_compare_users and passed.get("itemRepair", False)
+    if can_recommend_items and int_number(confidence.get("score")) >= 90:
+        status = "ready"
+        label = "목표 충족"
+    elif can_compare_users:
+        status = "caution"
+        label = "비교 가능"
+    else:
+        status = "diagnostic"
+        label = "점검 필요"
+
+    return {
+        "version": "single_metric_repair_v1",
+        "status": status,
+        "label": label,
+        "metricId": primary_metric.get("id") or "unifiedConverted380",
+        "metricValue": metric_value,
+        "basis": primary_metric.get("basis") or "",
+        "source": primary_metric.get("source") or "",
+        "canCompareUsers": can_compare_users,
+        "canRecommendItems": can_recommend_items,
+        "usedBy": {
+            "bossBoard": int_number(used_by.get("bossBoard")),
+            "itemUpgradePlan": int_number(used_by.get("itemUpgradePlan")),
+            "presetOptimization": int_number(used_by.get("presetOptimization")),
+        },
+        "repairFocus": repair_focus,
+        "repairChecklistCount": len(item_upgrade_plan.get("repairChecklist") or []),
+        "jobFormulaCount": job_count,
+        "currentJob": current_formula.get("job") or formula_quality.get("matchedJob") or "",
+        "fieldPaths": {
+            "representativeMetric": "primaryMetric.value",
+            "bossMetric": "bossBoard[0].currentConverted",
+            "presetMetric": "presetOptimization.current.converted",
+            "repairMetric": "itemUpgradePlan.currentConverted",
+            "repairFocus": "itemUpgradePlan.repairFocus",
+            "repairChecklist": "itemUpgradePlan.repairChecklist",
+        },
+        "checks": checks,
+        "failedCheckIds": [row["id"] for row in checks if not row["passed"]],
+    }
+
+
 def potential_lines(item: dict[str, Any], additional: bool = False) -> list[str]:
     prefix = "additional_potential_option" if additional else "potential_option"
     return [str(item.get(f"{prefix}_{idx}") or "") for idx in (1, 2, 3) if item.get(f"{prefix}_{idx}")]
@@ -4003,10 +4097,19 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         item_upgrade_plan,
         formula_manifest,
     )
+    goal_contract = build_goal_contract(
+        primary_metric,
+        single_metric_audit,
+        formula_quality,
+        input_source_audit,
+        item_upgrade_plan,
+        formula_manifest,
+    )
     return {
         "date": raw.get("date"),
         "basic": basic,
         "stats": stats,
+        "goalContract": goal_contract,
         "primaryMetric": primary_metric,
         "summary": summary_values,
         "convertedDetail": converted,

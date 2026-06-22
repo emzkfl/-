@@ -22,6 +22,10 @@ def assert_full_job_coverage() -> None:
             failures.append(f"{job}: mastery missing")
         if current["jobConvertedMultiplier"] <= 0:
             failures.append(f"{job}: converted multiplier missing")
+        if current["calibrationConfidence"] != "high":
+            failures.append(f"{job}: calibration confidence missing")
+        if not current["calibrationEvidence"]:
+            failures.append(f"{job}: calibration evidence missing")
         if coverage["missingDetailJobs"]:
             failures.append(f"{job}: global detail missing {coverage['missingDetailJobs']}")
         if coverage["missingMultiplierJobs"]:
@@ -106,6 +110,7 @@ def assert_sample_view_model() -> None:
     assert view["calculationAudit"]["rows"]
     assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])
+    assert any(row["label"] == "보정 표본" for row in view["calculationAudit"]["rows"])
     assert any(row["label"] == "최종 상세 배율" for row in view["calculationAudit"]["rows"])
 
 

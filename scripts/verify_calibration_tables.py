@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.calc import (  # noqa: E402
+    CALIBRATION_EVIDENCE,
     KMS_JOB_NAMES,
     choose_attack_type,
     choose_main_stat,
@@ -36,6 +37,10 @@ def assert_calibration_results(data: dict[str, Any]) -> None:
         missing = sorted(set(KMS_JOB_NAMES) - set(jobs))
         extra = sorted(set(jobs) - set(KMS_JOB_NAMES))
         failures.append(f"job set mismatch missing={missing} extra={extra}")
+    if set(CALIBRATION_EVIDENCE) != set(KMS_JOB_NAMES):
+        missing = sorted(set(KMS_JOB_NAMES) - set(CALIBRATION_EVIDENCE))
+        extra = sorted(set(CALIBRATION_EVIDENCE) - set(KMS_JOB_NAMES))
+        failures.append(f"embedded evidence job set mismatch missing={missing} extra={extra}")
 
     for job in KMS_JOB_NAMES:
         row = jobs.get(job) or {}
@@ -55,8 +60,19 @@ def assert_calibration_results(data: dict[str, Any]) -> None:
         if abs(stored_multiplier - current_multiplier) > 0.000001:
             failures.append(f"{job}: multiplier drift {stored_multiplier} != {current_multiplier}")
 
+        embedded = CALIBRATION_EVIDENCE.get(job)
+        if not embedded:
+            failures.append(f"{job}: embedded calibration evidence missing")
+        elif abs(float(embedded.get("multiplier") or 0.0) - stored_multiplier) > 0.000001:
+            failures.append(f"{job}: embedded multiplier drift {embedded.get('multiplier')} != {stored_multiplier}")
+
         raw = float(row.get("rawConverted") or 0.0)
         origin = float(row.get("originConverted") or 0.0)
+        if embedded:
+            if abs(float(embedded.get("rawConverted") or 0.0) - raw) > 0.001:
+                failures.append(f"{job}: embedded raw drift {embedded.get('rawConverted')} != {raw}")
+            if int(embedded.get("originConverted") or 0) != int(origin):
+                failures.append(f"{job}: embedded origin drift {embedded.get('originConverted')} != {origin}")
         if raw <= 0 or origin <= 0 or stored_multiplier <= 0:
             failures.append(f"{job}: missing raw/origin/multiplier calibration values")
             continue

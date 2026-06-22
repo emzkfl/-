@@ -165,6 +165,82 @@ JOB_CONVERTED_MULTIPLIERS = [
     {"keywords": ("히어로",), "multiplier": 0.881803},
 ]
 
+CALIBRATION_EVIDENCE_ROWS = (
+    ("나이트로드", 5, 131999, 131999, 1391399575, 180111.392, 0.732874, 0.0, 5),
+    ("나이트워커", 2, 131341, 131341, 1357517044, 172921.812, 0.75954, 0.0, 2),
+    ("다크나이트", 1, 130134, 130134, 1270699326, 234812.413, 0.554204, 0.0, 1),
+    ("데몬슬레이어", 11, 121197, 121197, 946949299, 112250.693, 1.079699, 0.0, 11),
+    ("데몬어벤져", 1, 136354, 135885, 1646714570, 31380.298, 4.34521, 0.0, 1),
+    ("듀얼블레이드", 2, 133613, 133613, 1706177196, 164130.634, 0.814065, 0.276, 2),
+    ("라라", 2, 127031, 127031, 1105300982, 155132.893, 0.818853, 2.416, 2),
+    ("레테", 1, 70361, 57349, 275743579, 86427.921, 0.8141, 0.39, 1),
+    ("렌", 1, 138496, 138184, 1720232741, 175316.574, 0.789977, 0.0, 1),
+    ("루미너스", 2, 128066, 128066, 1190280038, 152842.223, 0.837897, 1.173, 2),
+    ("메르세데스", 2, 133102, 133078, 1472249674, 167037.938, 0.796837, 2.782, 2),
+    ("메카닉", 6, 125241, 125241, 1072036514, 142743.022, 0.877388, 0.423, 6),
+    ("미하일", 1, 126200, 126200, 1123739065, 152234.285, 0.828985, 0.0, 1),
+    ("바이퍼", 1, 133621, 133621, 1478917620, 207778.543, 0.643093, 0.644, 1),
+    ("배틀메이지", 2, 127524, 127524, 1202992951, 149281.869, 0.85425, 0.0, 2),
+    ("보우마스터", 4, 127319, 127319, 1158092416, 191295.196, 0.665563, 0.0, 4),
+    ("블래스터", 1, 128209, 128209, 1180785174, 164330.134, 0.780192, 0.0, 1),
+    ("비숍", 3, 133264, 133264, 1482328105, 232478.457, 0.573232, 0.0, 3),
+    ("섀도어", 2, 135640, 135640, 1641292039, 243089.538, 0.557984, 0.0, 2),
+    ("소울마스터", 4, 128247, 128247, 1214720139, 144196.499, 0.889391, 2.644, 4),
+    ("스트라이커", 4, 126446, 126446, 1120645864, 145704.49, 0.867825, 0.0, 4),
+    ("신궁", 1, 129101, 129101, 1249633946, 163540.207, 0.789414, 1.267, 1),
+    ("아델", 1, 147144, 147144, 2126416856, 226996.104, 0.648223, 1.422, 1),
+    ("아란", 2, 130083, 130083, 1317095102, 148210.022, 0.877694, 0.0, 2),
+    ("아크", 1, 132258, 132258, 1400979775, 155490.015, 0.850588, 0.0, 1),
+    ("아크메이지(불,독)", 4, 131808, 131808, 1368145883, 215230.282, 0.612405, 0.39, 4),
+    ("아크메이지(썬,콜)", 1, 135522, 135522, 1569260815, 270086.24, 0.501773, 0.0, 1),
+    ("에반", 1, 131901, 131901, 1425616786, 164291.863, 0.802846, 0.0, 1),
+    ("엔젤릭버스터", 1, 133644, 133644, 1509013408, 166064.209, 0.804773, 0.0, 1),
+    ("와일드헌터", 1, 127421, 127421, 1131897067, 175969.849, 0.724107, 0.0, 1),
+    ("윈드브레이커", 1, 140606, 140606, 1818744322, 202732.048, 0.693556, 0.145, 1),
+    ("은월", 1, 135437, 135437, 1518292263, 219733.477, 0.616369, 0.447, 1),
+    ("일리움", 1, 135800, 135800, 1564279074, 193425.966, 0.702077, 0.956, 1),
+    ("제논", 1, 135963, 135963, 1658373525, 123873.528, 1.097595, 0.0, 1),
+    ("제로", 1, 131708, 131708, 1281745434, 140160.716, 0.939693, 0.0, 1),
+    ("카데나", 1, 133939, 133939, 1515466805, 130686.694, 1.024886, 0.0, 1),
+    ("카이저", 1, 134516, 134516, 1466955942, 145844.977, 0.922322, 0.0, 1),
+    ("카인", 10, 123849, 123849, 1069098463, 186100.97, 0.665494, 0.0, 10),
+    ("칼리", 2, 128407, 128407, 1171359771, 167003.846, 0.768886, 0.0, 2),
+    ("캐논슈터", 3, 135072, 135072, 1520656491, 174157.54, 0.775574, 0.006, 3),
+    ("캡틴", 1, 131120, 131120, 1318349697, 160839.531, 0.815222, 0.0, 1),
+    ("키네시스", 1, 132069, 132069, 1375710633, 201008.366, 0.657032, 0.0, 1),
+    ("팔라딘", 3, 131672, 131672, 1344352547, 163545.535, 0.805109, 0.0, 3),
+    ("패스파인더", 1, 130749, 130749, 1296986736, 174718.629, 0.74834, 0.0, 1),
+    ("팬텀", 2, 136176, 136176, 1560274714, 168599.234, 0.807691, 0.0, 2),
+    ("플레임위자드", 1, 130082, 130082, 1262098601, 176068.721, 0.738814, 1.957, 1),
+    ("호영", 1, 137623, 137623, 1706662020, 326740.296, 0.4212, 0.0, 1),
+    ("히어로", 4, 130090, 130090, 1344672406, 147527.214, 0.881803, 0.0, 4),
+)
+
+CALIBRATION_EVIDENCE = {
+    job: {
+        "sampleRank": sample_rank,
+        "originConverted": origin_converted,
+        "originHexa": origin_hexa,
+        "originCombatPower": origin_combat_power,
+        "rawConverted": raw_converted,
+        "multiplier": multiplier,
+        "combatErrorPercent": combat_error_percent,
+        "checkedCount": checked_count,
+        "confidence": "high",
+    }
+    for (
+        job,
+        sample_rank,
+        origin_converted,
+        origin_hexa,
+        origin_combat_power,
+        raw_converted,
+        multiplier,
+        combat_error_percent,
+        checked_count,
+    ) in CALIBRATION_EVIDENCE_ROWS
+}
+
 COMBAT_CONVERTED_LOG_COEFFICIENTS = (
     -289.296670981936,
     42.84563887852173,
@@ -673,6 +749,28 @@ def job_converted_multiplier(character_class: str | None) -> float:
     return best
 
 
+def job_calibration_evidence(character_class: str | None) -> dict[str, Any]:
+    text = str(character_class or "")
+    detail_rule = job_detail_rule(character_class)
+    primary = primary_job_name(detail_rule, character_class)
+    best_job = primary if primary in CALIBRATION_EVIDENCE else ""
+    best_length = len(best_job)
+    for job in CALIBRATION_EVIDENCE:
+        if job in text and len(job) > best_length:
+            best_job = job
+            best_length = len(job)
+    if not best_job:
+        return {}
+
+    evidence = dict(CALIBRATION_EVIDENCE[best_job])
+    evidence["job"] = best_job
+    estimated = float(evidence["rawConverted"]) * float(evidence["multiplier"])
+    origin = float(evidence["originConverted"])
+    evidence["estimatedConverted"] = round(estimated)
+    evidence["sampleErrorPercent"] = round(abs(estimated - origin) / origin * 100, 4) if origin else 0.0
+    return evidence
+
+
 def combat_converted_job_factor(character_class: str | None) -> tuple[float, bool]:
     text = str(character_class or "")
     best = 1.0
@@ -742,6 +840,7 @@ def calculation_coverage(character_class: str | None) -> dict[str, Any]:
     current_job = primary_job_name(detail_rule or basic_rule, character_class)
     rule_weapon_constant = float((detail_rule or {}).get("weaponConstant") or DEFAULT_WEAPON_CONSTANT)
     combat_job_factor, combat_job_matched = combat_converted_job_factor(character_class)
+    calibration = job_calibration_evidence(character_class)
     return {
         "targetJobs": len(KMS_JOB_NAMES),
         "coveredDetailJobs": len(KMS_JOB_NAMES) - len(detail_missing),
@@ -764,6 +863,8 @@ def calculation_coverage(character_class: str | None) -> dict[str, Any]:
             "jobConvertedMultiplier": job_converted_multiplier(character_class),
             "combatPowerJobFactor": combat_job_factor,
             "combatPowerJobFactorMatched": bool(combat_job_matched or special_combat),
+            "calibrationConfidence": str(calibration.get("confidence") or ""),
+            "calibrationEvidence": calibration,
             "specialDetailModel": str((special_detail or {}).get("model") or ""),
             "specialCombatModel": str((special_combat or {}).get("model") or ""),
         },
@@ -1274,6 +1375,7 @@ def build_calculation_audit(
     attack = converted.get("attackFormula") or {}
     stat_effect = hexa_converted.get("statEffect") or {}
     skill_effect = hexa_converted.get("skillEffect") or {}
+    calibration = current.get("calibrationEvidence") or {}
 
     rows = [
         {
@@ -1295,6 +1397,15 @@ def build_calculation_audit(
             "label": "직업 샘플 배율",
             "value": f"{float(current.get('jobConvertedMultiplier') or 0):.6f}",
             "detail": f"원본 사이트 샘플 기준 · 전투력계수 {float(current.get('combatPowerJobFactor') or 0):.6f}",
+        },
+        {
+            "label": "보정 표본",
+            "value": str(calibration.get("confidence") or "unknown"),
+            "detail": (
+                f"{calibration.get('job') or '-'} rank {calibration.get('sampleRank') or '-'} · "
+                f"원본 {int(calibration.get('originConverted') or 0):,} · "
+                f"표본오차 {float(calibration.get('sampleErrorPercent') or 0):.4f}%"
+            ),
         },
         {
             "label": "최종 상세 배율",

@@ -292,7 +292,6 @@ COMBAT_CONVERTED_JOB_FACTORS = [
     {"keywords": ("데몬슬레이어", "데슬"), "factor": 1.000657},
     {"keywords": ("듀얼블레이드", "듀블"), "factor": 0.968829},
     {"keywords": ("라라",), "factor": 1.012604},
-    {"keywords": ("레테",), "factor": 0.845707},
     {"keywords": ("렌",), "factor": 0.999091},
     {"keywords": ("루미너스",), "factor": 1.006563},
     {"keywords": ("메르세데스",), "factor": 1.008429},
@@ -343,6 +342,11 @@ SPECIAL_COMBAT_CONVERTED_MODELS = [
         "keywords": ("제논",),
         "model": "special_combat_curve_xenon",
         "coefficients": (11.138032201954397, 0.03041126015592686),
+    },
+    {
+        "keywords": ("레테",),
+        "model": "special_combat_curve_lete",
+        "coefficients": (4.726057227928514, 0.3300725179100883),
     },
 ]
 COMBAT_CONVERTED_LEGACY_JOBS: tuple[str, ...] = ()

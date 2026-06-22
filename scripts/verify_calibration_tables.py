@@ -24,6 +24,7 @@ from app.calc import (  # noqa: E402
     build_view_model,
     choose_attack_type,
     choose_main_stat,
+    combat_power_converted_score,
     job_converted_multiplier,
     job_detail_rule,
     primary_job_name,
@@ -31,8 +32,15 @@ from app.calc import (  # noqa: E402
 
 
 MAX_SAMPLE_ERROR_PERCENT = 0.01
+MAX_RANKING_COMBAT_ERROR_PERCENT = 3.0
+MAX_RANKING_COMBAT_AVERAGE_ERROR_PERCENT = 1.0
 MAX_SPECIAL_SAMPLE_ERROR_PERCENT = 5.0
 MAX_SPECIAL_AVERAGE_ERROR_PERCENT = 2.5
+RANKING_COMBAT_ERROR_LIMITS = {
+    "데몬어벤져": {"max": 6.0, "average": 2.5},
+    "레테": {"max": 16.0, "average": 2.0},
+    "제논": {"max": 5.0, "average": 2.0},
+}
 
 
 def read_json(path: Path) -> dict[str, Any] | None:
@@ -127,6 +135,45 @@ def assert_ranking_samples(data: dict[str, Any]) -> None:
         raise AssertionError("\n".join(problems))
 
 
+def assert_ranking_combat_model(data: dict[str, Any]) -> None:
+    samples = data.get("samples") or {}
+    problems: list[str] = []
+
+    for job in KMS_JOB_NAMES:
+        rows = samples.get(job) or []
+        errors = []
+        for row in rows[:30]:
+            origin = float(row.get("originConverted") or 0.0)
+            combat_power = float(row.get("originCombatPower") or 0.0)
+            if origin <= 0 or combat_power <= 0:
+                problems.append(f"{job}/{row.get('name')}: ranking combat sample missing values")
+                continue
+            predicted = combat_power_converted_score({K_COMBAT: combat_power}, job)
+            if not predicted.get("applied"):
+                problems.append(f"{job}/{row.get('name')}: combat model not applied")
+                continue
+            converted = float(predicted.get("converted") or 0.0)
+            errors.append(abs(converted - origin) / origin * 100)
+
+        if not errors:
+            problems.append(f"{job}: no combat model errors calculated")
+            continue
+
+        limits = RANKING_COMBAT_ERROR_LIMITS.get(
+            job,
+            {"max": MAX_RANKING_COMBAT_ERROR_PERCENT, "average": MAX_RANKING_COMBAT_AVERAGE_ERROR_PERCENT},
+        )
+        max_error = max(errors)
+        average_error = sum(errors) / len(errors)
+        if max_error > limits["max"]:
+            problems.append(f"{job}: ranking combat max error {max_error:.3f}% exceeds {limits['max']}%")
+        if average_error > limits["average"]:
+            problems.append(f"{job}: ranking combat average error {average_error:.3f}% exceeds {limits['average']}%")
+
+    if problems:
+        raise AssertionError("\n".join(problems))
+
+
 def special_sample_raw(row: dict[str, Any]) -> dict[str, Any]:
     stats = [
         ("STR", row.get("STR")),
@@ -213,6 +260,7 @@ def main() -> None:
 
     assert_calibration_results(calibration)
     assert_ranking_samples(rankings)
+    assert_ranking_combat_model(rankings)
     if special_samples is not None:
         assert_special_job_samples(special_samples)
     print(f"OK: calibration tables match {len(KMS_JOB_NAMES)} KMS jobs")

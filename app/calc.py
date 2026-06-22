@@ -2429,6 +2429,88 @@ def build_repair_evidence_summary(
     }
 
 
+def build_repair_consistency_audit(
+    rows: list[dict[str, Any]],
+    repair_checklist: list[dict[str, Any]],
+    repair_evidence: dict[str, Any],
+    basis: str,
+) -> dict[str, Any]:
+    def priority_key(row: dict[str, Any]) -> tuple[float, float, float]:
+        return (
+            float(row.get("priorityScore") or 0.0),
+            float(row.get("expectedGain") or 0.0),
+            -float(row.get("contribution") or 0.0),
+        )
+
+    sorted_ok = all(
+        priority_key(rows[index]) >= priority_key(rows[index + 1])
+        for index in range(max(0, len(rows) - 1))
+    )
+    evidence_ok = all(
+        (row.get("recommendationEvidence") or {}).get("basis") == basis
+        and (row.get("recommendationEvidence") or {}).get("expectedGain") == row.get("expectedGain")
+        and (row.get("recommendationEvidence") or {}).get("contribution") == row.get("contribution")
+        and (row.get("recommendationEvidence") or {}).get("priorityScore") == row.get("priorityScore")
+        for row in rows
+    )
+    checklist_ok = all(
+        index < len(rows)
+        and checklist.get("item") == rows[index].get("name")
+        and checklist.get("expectedGain") == rows[index].get("expectedGain")
+        and (checklist.get("recommendationEvidence") or {}).get("priorityScore") == rows[index].get("priorityScore")
+        for index, checklist in enumerate(repair_checklist)
+    )
+    top = rows[0] if rows else {}
+    top_evidence = repair_evidence.get("top") or {}
+    top_ok = not rows or (
+        top_evidence.get("item") == top.get("name")
+        and top_evidence.get("recommendedAction") == top.get("recommendedAction")
+        and top_evidence.get("priorityScore") == top.get("priorityScore")
+    )
+    candidate_count_ok = int_number(repair_evidence.get("candidateCount")) == len(rows)
+
+    checks = [
+        {
+            "label": "추천 정렬",
+            "passed": sorted_ok,
+            "detail": "우선순위 점수, 예상 상승량, 현재 기여도 기준",
+        },
+        {
+            "label": "추천 근거",
+            "passed": evidence_ok,
+            "detail": "각 카드의 예상 상승량·기여도·우선순위 근거 일치",
+        },
+        {
+            "label": "체크리스트",
+            "passed": checklist_ok,
+            "detail": "체크리스트 순위와 추천 카드 순위 연결",
+        },
+        {
+            "label": "최상위 추천",
+            "passed": top_ok,
+            "detail": "요약 근거와 1순위 추천 연결",
+        },
+        {
+            "label": "후보 수",
+            "passed": candidate_count_ok,
+            "detail": f"{len(rows)}개 개선 후보",
+        },
+    ]
+    failed = [row for row in checks if not row["passed"]]
+    return {
+        "metric": "unifiedConverted380",
+        "basis": basis,
+        "allPassed": not failed,
+        "checkCount": len(checks),
+        "failedCount": len(failed),
+        "candidateCount": len(rows),
+        "topItem": top.get("name") or "",
+        "topAction": top.get("recommendedAction") or "",
+        "topExpectedGain": top.get("expectedGain") or 0,
+        "checks": checks,
+    }
+
+
 def build_upgrade_efficiency_profile(
     stats: dict[str, float],
     item_response: dict[str, Any],
@@ -2654,6 +2736,7 @@ def build_item_upgrade_plan(
     slot_summary = build_upgrade_slot_summary(rows)
     repair_checklist = build_repair_checklist(rows)
     repair_evidence = build_repair_evidence_summary(rows, basis, main_stat, attack_type, stat_targets)
+    repair_audit = build_repair_consistency_audit(rows, repair_checklist, repair_evidence, basis)
     efficiency_profile = build_upgrade_efficiency_profile(
         stats,
         item_response,
@@ -2678,6 +2761,7 @@ def build_item_upgrade_plan(
         "slotSummary": slot_summary,
         "primarySlot": slot_summary[0] if slot_summary else None,
         "repairEvidence": repair_evidence,
+        "repairAudit": repair_audit,
         "repairFocus": {
             "slot": (slot_summary[0] or {}).get("slot") if slot_summary else "",
             "category": (category_summary[0] or {}).get("type") if category_summary else "",

@@ -476,6 +476,7 @@ function renderUpgradePlan(data) {
   const focus = plan.repairFocus || {};
   const efficiency = plan.primaryEfficiency || {};
   const reliability = plan.reliability || {};
+  const repairAudit = plan.repairAudit || {};
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
   const efficiencyText = efficiency.action ? ` · 효율 ${efficiency.action} +${formatNumber(efficiency.gain || 0)}` : "";
   const reliabilityText = reliability.label ? ` · 추천 ${reliability.label}` : "";
@@ -496,6 +497,13 @@ function renderUpgradePlan(data) {
       <small>${escapeHtml((reliability.reasons || [])[0] || "추천 신뢰도 정보 없음")}</small>
     </article>`
     : "";
+  const auditCard = repairAudit.checkCount
+    ? `<article class="upgrade-slot priority">
+      <span>추천 감사 · ${repairAudit.allPassed ? "일치" : "점검 필요"}</span>
+      <strong>${formatNumber(repairAudit.candidateCount || 0)}개</strong>
+      <small>${escapeHtml(repairAudit.topItem || "-")} · +${formatNumber(repairAudit.topExpectedGain || 0)}</small>
+    </article>`
+    : "";
   const slotCards = (plan.slotSummary || [])
     .slice(0, 4)
     .map((slot) => `<article class="upgrade-slot">
@@ -505,7 +513,7 @@ function renderUpgradePlan(data) {
       <em>${escapeHtml(slot.bestItem || "-")}${slot.topWeakness ? ` · ${escapeHtml(slot.topWeakness)}` : ""}</em>
     </article>`)
     .join("");
-  upgradeSlotList.innerHTML = reliabilityCard + checklistCards + slotCards;
+  upgradeSlotList.innerHTML = auditCard + reliabilityCard + checklistCards + slotCards;
   const efficiencyCards = (plan.efficiencyProfile || [])
     .slice(0, 4)
     .map((row) => `<article class="upgrade-category">

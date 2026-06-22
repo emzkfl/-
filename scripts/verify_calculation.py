@@ -121,6 +121,7 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     failures: list[str] = []
     rows = plan.get("top") or []
     summary = plan.get("repairEvidence") or {}
+    audit = plan.get("repairAudit") or {}
 
     if not summary:
         failures.append(f"{context}: repair evidence summary missing")
@@ -160,6 +161,24 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     for checklist_row in plan.get("repairChecklist") or []:
         if not checklist_row.get("recommendationEvidence"):
             failures.append(f"{context}: checklist recommendation evidence missing")
+    if not audit:
+        failures.append(f"{context}: repair audit missing")
+    else:
+        if audit.get("basis") != plan.get("basis"):
+            failures.append(f"{context}: repair audit basis mismatch")
+        if audit.get("metric") != "unifiedConverted380":
+            failures.append(f"{context}: repair audit metric mismatch")
+        if not audit.get("allPassed"):
+            failures.append(f"{context}: repair audit failed {audit.get('checks')}")
+        if audit.get("candidateCount") != len(plan.get("all") or rows):
+            failures.append(f"{context}: repair audit candidate count mismatch")
+        if rows:
+            if audit.get("topItem") != rows[0].get("name"):
+                failures.append(f"{context}: repair audit top item mismatch")
+            if audit.get("topAction") != rows[0].get("recommendedAction"):
+                failures.append(f"{context}: repair audit top action mismatch")
+            if audit.get("topExpectedGain") != rows[0].get("expectedGain"):
+                failures.append(f"{context}: repair audit top gain mismatch")
     return failures
 
 
@@ -484,6 +503,8 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
     assert not recommendation_evidence_failures(view["itemUpgradePlan"], "sample 레테")
     assert view["itemUpgradePlan"]["repairEvidence"]["top"]["item"] == view["itemUpgradePlan"]["top"][0]["name"]
+    assert view["itemUpgradePlan"]["repairAudit"]["allPassed"]
+    assert view["itemUpgradePlan"]["repairAudit"]["topItem"] == view["itemUpgradePlan"]["top"][0]["name"]
     assert view["itemUpgradePlan"]["top"][0]["scoreBasis"] == view["itemUpgradePlan"]["basis"]
     assert view["itemUpgradePlan"]["top"][0]["expectedGain"] == view["itemUpgradePlan"]["top"][0]["scenarios"][0]["gain"]
     assert view["itemUpgradePlan"]["top"][0]["scenarios"][0]["gainPercent"] > 0

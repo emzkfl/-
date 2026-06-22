@@ -907,6 +907,61 @@ def calculation_coverage(character_class: str | None) -> dict[str, Any]:
     }
 
 
+def formula_diagnostics(
+    coverage: dict[str, Any],
+    converted: dict[str, Any],
+    character_class: str | None,
+) -> dict[str, Any]:
+    current = coverage.get("current") or {}
+    detail_matched = bool(current.get("detailRuleApplied"))
+    multiplier_matched = table_matches_job(JOB_CONVERTED_MULTIPLIERS, character_class)
+    combat_matched = bool(current.get("combatPowerJobFactorMatched"))
+    evidence_matched = bool(current.get("calibrationEvidence"))
+    missing_tables = []
+    if not detail_matched:
+        missing_tables.append("직업 상세식")
+    if not multiplier_matched:
+        missing_tables.append("환산 보정")
+    if not combat_matched:
+        missing_tables.append("전투력 모델")
+    if not evidence_matched:
+        missing_tables.append("보정 표본")
+
+    if detail_matched and multiplier_matched and combat_matched and evidence_matched:
+        status = "complete"
+        message = "직업별 상세식, 환산 보정, 전투력 모델이 모두 적용되었습니다."
+    elif detail_matched:
+        status = "partial"
+        message = "직업 상세식은 적용되었지만 일부 보정 표가 부족합니다."
+    else:
+        status = "fallback"
+        message = "지원되지 않는 직업명입니다. 가장 높은 스탯과 일반 무기상수 기준으로 임시 계산했습니다."
+
+    return {
+        "status": status,
+        "message": message,
+        "inputClass": str(character_class or ""),
+        "matchedJob": current.get("job") or "",
+        "detailRuleApplied": detail_matched,
+        "convertedMultiplierApplied": multiplier_matched,
+        "combatModelApplied": combat_matched,
+        "calibrationEvidenceApplied": evidence_matched,
+        "missingTables": missing_tables,
+        "knownJobCount": coverage.get("targetJobs") or 0,
+        "knownJobsCovered": not (
+            coverage.get("missingDetailJobs")
+            or coverage.get("missingMultiplierJobs")
+            or coverage.get("missingCombatJobs")
+        ),
+        "fallbackBasis": {
+            "mainStat": converted.get("mainStat"),
+            "attackType": converted.get("attackType"),
+            "weaponConstant": converted.get("damageFormula", {}).get("weaponConstant"),
+            "mastery": converted.get("damageFormula", {}).get("mastery"),
+        },
+    }
+
+
 def combat_power_converted_score(stats: dict[str, float], character_class: str | None) -> dict[str, Any]:
     combat_power = exact_combat_power(stats)
     if combat_power <= 0:
@@ -2767,6 +2822,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     best_converted = best_preset.get("converted", boss_basis)
     boss_board = build_boss_board(boss_basis)
     coverage = calculation_coverage(character_class)
+    formula_quality = formula_diagnostics(coverage, converted, character_class)
     calculation_audit = build_calculation_audit(
         converted,
         hexa_converted,
@@ -2811,6 +2867,8 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
             "jobNote": converted["jobNote"],
             "apiQualityPercent": api_quality["qualityPercent"],
             "apiWarningCount": api_quality["warningCount"],
+            "formulaStatus": formula_quality["status"],
+            "formulaMessage": formula_quality["message"],
         },
         "convertedDetail": converted,
         "hexaConvertedDetail": hexa_converted,
@@ -2818,6 +2876,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "presetViews": preset_views,
         "presetUpgradePlans": preset_upgrade_plans,
         "apiDataQuality": api_quality,
+        "formulaDiagnostics": formula_quality,
         "calculationCoverage": coverage,
         "calculationAudit": calculation_audit,
         "itemUpgradePlan": item_upgrade_plan,

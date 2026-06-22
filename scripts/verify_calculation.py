@@ -110,9 +110,12 @@ def assert_full_job_view_models() -> None:
 
         summary = view["summary"]
         coverage = view["calculationCoverage"]["current"]
+        formula = view["formulaDiagnostics"]
         plan = view["itemUpgradePlan"]
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
+        if formula["status"] != "complete":
+            failures.append(f"{job}: formula diagnostics incomplete {formula}")
         if not summary["jobRuleApplied"]:
             failures.append(f"{job}: job rule not applied")
         if summary["mainStat"] != main_stat:
@@ -209,6 +212,9 @@ def assert_sample_view_model() -> None:
     assert api_quality["warningCount"] == 0
     assert view["summary"]["apiQualityPercent"] == api_quality["qualityPercent"]
     assert view["summary"]["apiWarningCount"] == api_quality["warningCount"]
+    assert view["summary"]["formulaStatus"] == "complete"
+    assert view["formulaDiagnostics"]["matchedJob"] == "레테"
+    assert view["formulaDiagnostics"]["knownJobsCovered"]
     assert coverage["targetJobs"] >= 48
     assert coverage["current"]["job"] == "레테"
     assert view["summary"]["mainStat"] == "INT"
@@ -357,6 +363,18 @@ def assert_api_warning_diagnostics() -> None:
     assert view["summary"]["apiWarningCount"] == 1
 
 
+def assert_unknown_job_formula_diagnostics() -> None:
+    view = build_view_model(sample_raw("신규직업", "INT", "마력", "INT : +3%"))
+    formula = view["formulaDiagnostics"]
+    assert formula["status"] == "fallback"
+    assert not formula["detailRuleApplied"]
+    assert not formula["convertedMultiplierApplied"]
+    assert "직업 상세식" in formula["missingTables"]
+    assert view["summary"]["formulaStatus"] == "fallback"
+    assert view["summary"]["unifiedConverted380"] > 0
+    assert view["itemUpgradePlan"]["repairChecklist"]
+
+
 def main() -> None:
     assert_job_table_integrity()
     assert_full_job_coverage()
@@ -365,6 +383,7 @@ def main() -> None:
     assert_special_item_targets()
     assert_preset_metric_basis()
     assert_api_warning_diagnostics()
+    assert_unknown_job_formula_diagnostics()
     print(f"OK: {len(KMS_JOB_NAMES)} KMS jobs covered")
 
 

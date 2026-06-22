@@ -375,6 +375,7 @@ function renderCoverage(data) {
   const coverage = data.calculationCoverage || {};
   const audit = data.calculationAudit || {};
   const quality = data.apiDataQuality || {};
+  const formula = data.formulaDiagnostics || {};
   const presetQuality = quality.presetSections || {};
   const current = coverage.current || {};
   const total = coverage.targetJobs || 0;
@@ -394,7 +395,18 @@ function renderCoverage(data) {
     .slice(0, 2)
     .join(" · ");
   const optionalMissingPreview = (quality.missingOptionalSections || []).slice(0, 4).join(" · ");
+  const formulaStatus = {
+    complete: "완전 적용",
+    partial: "부분 적용",
+    fallback: "임시 계산",
+  }[formula.status] || "-";
+  const formulaMissingPreview = (formula.missingTables || []).slice(0, 4).join(" · ");
   const coverageRows = [
+    coverageRow(
+      "직업 공식",
+      `${formula.matchedJob || current.job || "-"} · ${formulaStatus}`,
+      formulaMissingPreview ? `부족: ${formulaMissingPreview}` : (formula.message || "직업별 계산식 적용 상태"),
+    ),
     coverageRow(
       "API 데이터",
       `${formatNumber(quality.requiredPresent || 0)} / ${formatNumber(quality.requiredTotal || 0)} 필수 · ${formatNumber(quality.optionalPresent || 0)} / ${formatNumber(quality.optionalTotal || 0)} 선택`,

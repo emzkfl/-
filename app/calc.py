@@ -740,6 +740,8 @@ def calculation_coverage(character_class: str | None) -> dict[str, Any]:
     special_detail = special_detail_hybrid_model(character_class)
     special_combat = special_combat_converted_model(character_class)
     current_job = primary_job_name(detail_rule or basic_rule, character_class)
+    rule_weapon_constant = float((detail_rule or {}).get("weaponConstant") or DEFAULT_WEAPON_CONSTANT)
+    combat_job_factor, combat_job_matched = combat_converted_job_factor(character_class)
     return {
         "targetJobs": len(KMS_JOB_NAMES),
         "coveredDetailJobs": len(KMS_JOB_NAMES) - len(detail_missing),
@@ -756,6 +758,12 @@ def calculation_coverage(character_class: str | None) -> dict[str, Any]:
             "mainStat": str((detail_rule or basic_rule or {}).get("mainStat") or ""),
             "attackType": str((detail_rule or basic_rule or {}).get("attackType") or ""),
             "statMode": str((detail_rule or {}).get("statMode") or "single"),
+            "weaponConstant": rule_weapon_constant,
+            "calibratedWeaponConstant": float((detail_rule or {}).get("calibratedWeaponConstant") or rule_weapon_constant),
+            "mastery": float((detail_rule or {}).get("mastery") or DEFAULT_MASTERY),
+            "jobConvertedMultiplier": job_converted_multiplier(character_class),
+            "combatPowerJobFactor": combat_job_factor,
+            "combatPowerJobFactorMatched": bool(combat_job_matched or special_combat),
             "specialDetailModel": str((special_detail or {}).get("model") or ""),
             "specialCombatModel": str((special_combat or {}).get("model") or ""),
         },
@@ -1250,6 +1258,84 @@ def build_boss_board(converted: float) -> list[dict[str, Any]]:
         status = boss_status(converted, boss["party"], boss["solo"], boss.get("hpRatio"))
         result.append({**boss, **status})
     return result
+
+
+def build_calculation_audit(
+    converted: dict[str, Any],
+    hexa_converted: dict[str, Any],
+    coverage: dict[str, Any],
+    unified_converted: float,
+    unified_multiplier: float,
+) -> dict[str, Any]:
+    current = coverage.get("current") or {}
+    damage = converted.get("damageFormula") or {}
+    base_stat = converted.get("baseStatFormula") or {}
+    main = base_stat.get("main") or {}
+    attack = converted.get("attackFormula") or {}
+    stat_effect = hexa_converted.get("statEffect") or {}
+    skill_effect = hexa_converted.get("skillEffect") or {}
+
+    rows = [
+        {
+            "label": "대표 지표",
+            "value": f"{round(unified_converted):,}",
+            "detail": f"{hexa_converted.get('model') or 'hexa_adjusted'} · 배율 {unified_multiplier:.6f}",
+        },
+        {
+            "label": "직업 상세식",
+            "value": str(current.get("job") or "-"),
+            "detail": f"{current.get('mainStat') or '-'} / {current.get('attackType') or '-'} · {current.get('statMode') or 'single'}",
+        },
+        {
+            "label": "무기/숙련도",
+            "value": f"{float(damage.get('weaponConstant') or 0):.2f} / {float(damage.get('mastery') or 0):.2f}",
+            "detail": f"보정상수 {float(current.get('calibratedWeaponConstant') or 0):.2f} · 평균숙련 {float(damage.get('masteryAverage') or 0):.3f}",
+        },
+        {
+            "label": "직업 샘플 배율",
+            "value": f"{float(current.get('jobConvertedMultiplier') or 0):.6f}",
+            "detail": f"원본 사이트 샘플 기준 · 전투력계수 {float(current.get('combatPowerJobFactor') or 0):.6f}",
+        },
+        {
+            "label": "최종 상세 배율",
+            "value": f"{float(converted.get('jobConvertedMultiplier') or 0):.6f}",
+            "detail": f"직업 배율에 무기상수 보정 반영 · 모델 {converted.get('convertedModel') or '-'}",
+        },
+        {
+            "label": "주스탯 공식",
+            "value": f"{float(main.get('value') or 0):,.0f}",
+            "detail": f"기본 {float(main.get('base') or 0):,.0f} · {float(main.get('percent') or 0):.1f}% · 미적용 {float(main.get('static') or 0):,.0f}",
+        },
+        {
+            "label": "공격 공식",
+            "value": f"{float(attack.get('value') or 0):,.0f}",
+            "detail": f"기본 {float(attack.get('base') or 0):,.1f} · {float(attack.get('percent') or 0):.1f}%",
+        },
+        {
+            "label": "방어/크리/속성",
+            "value": f"{float(damage.get('armorFactor') or 0):.4f}",
+            "detail": f"크리 {float(damage.get('criticalFactor') or 0):.4f} · 속성 {float(damage.get('elementalFactor') or 0):.4f}",
+        },
+        {
+            "label": "HEXA 스킬",
+            "value": f"Lv.{int(skill_effect.get('totalLevel') or 0)}",
+            "detail": f"스킬효율 {float(skill_effect.get('effectRate') or 0) * 100:.2f}% · 완성도 {float(hexa_converted.get('completionRatio') or 0) * 100:.2f}%",
+        },
+        {
+            "label": "HEXA 스탯",
+            "value": f"{int(stat_effect.get('count') or 0)}개",
+            "detail": f"적용옵션 {len(stat_effect.get('details') or [])}개 · 환산차 {float(hexa_converted.get('gap') or 0):,.0f}",
+        },
+    ]
+    return {
+        "formula": "sqrt(damage_factor) * 4 * job_multiplier, then HEXA adjustment",
+        "rows": rows,
+        "damageFactor": round(float(converted.get("damageFactor") or 0), 4),
+        "rawConverted": round(float(converted.get("rawConverted") or 0)),
+        "detailedConverted": round(float(converted.get("detailedConverted") or 0)),
+        "hexaConverted": round(float(hexa_converted.get("converted") or 0)),
+        "unifiedConverted": round(unified_converted),
+    }
 
 
 def potential_lines(item: dict[str, Any], additional: bool = False) -> list[str]:
@@ -2271,6 +2357,14 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     best_preset = preset_optimization.get("best") or {}
     best_converted = best_preset.get("converted", boss_basis)
     boss_board = build_boss_board(boss_basis)
+    coverage = calculation_coverage(character_class)
+    calculation_audit = build_calculation_audit(
+        converted,
+        hexa_converted,
+        coverage,
+        unified_converted,
+        unified_multiplier,
+    )
 
     union = raw.get("union") or {}
     return {
@@ -2310,7 +2404,8 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "hexaConvertedDetail": hexa_converted,
         "presetOptimization": preset_optimization,
         "presetViews": preset_views,
-        "calculationCoverage": calculation_coverage(character_class),
+        "calculationCoverage": coverage,
+        "calculationAudit": calculation_audit,
         "itemUpgradePlan": item_upgrade_plan,
         "bossBoard": boss_board,
         "radar": radar(stats, converted),

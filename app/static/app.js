@@ -360,6 +360,7 @@ function renderExtra(data) {
 
 function renderCoverage(data) {
   const coverage = data.calculationCoverage || {};
+  const audit = data.calculationAudit || {};
   const current = coverage.current || {};
   const total = coverage.targetJobs || 0;
   const missing = [
@@ -367,13 +368,15 @@ function renderCoverage(data) {
     ...(coverage.missingMultiplierJobs || []),
     ...(coverage.missingCombatJobs || []),
   ];
-  coverageList.innerHTML = [
+  const coverageRows = [
     coverageRow("KMS 상세식", `${formatNumber(coverage.coveredDetailJobs || 0)} / ${formatNumber(total)}`, "레테 포함 직업별 주스탯·무기상수 적용"),
     coverageRow("환산 보정", `${formatNumber(coverage.coveredMultiplierJobs || 0)} / ${formatNumber(total)}`, "원사이트 샘플 기반 직업별 배율"),
     coverageRow("전투력 모델", `${formatNumber(coverage.coveredCombatJobs || 0)} / ${formatNumber(total)}`, "특수 직업은 별도 모델 포함"),
     coverageRow("현재 직업", current.job || "-", `${current.mainStat || "-"} / ${current.attackType || "-"} · ${current.statMode || "single"}`),
     coverageRow("특수 보정", current.specialDetailModel || current.specialCombatModel || "일반 상세식", missing.length ? `누락 ${missing.length}개` : "누락 없음"),
-  ].join("");
+  ];
+  const auditRows = (audit.rows || []).map((row) => coverageRow(row.label, row.value, row.detail));
+  coverageList.innerHTML = [...coverageRows, ...auditRows].join("");
 }
 
 function optionLine(label, value, suffix = "") {

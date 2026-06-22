@@ -16,6 +16,12 @@ def assert_full_job_coverage() -> None:
         current = coverage["current"]
         if not current["detailRuleApplied"]:
             failures.append(f"{job}: detail rule missing")
+        if current["weaponConstant"] <= 0:
+            failures.append(f"{job}: weapon constant missing")
+        if current["mastery"] <= 0:
+            failures.append(f"{job}: mastery missing")
+        if current["jobConvertedMultiplier"] <= 0:
+            failures.append(f"{job}: converted multiplier missing")
         if coverage["missingDetailJobs"]:
             failures.append(f"{job}: global detail missing {coverage['missingDetailJobs']}")
         if coverage["missingMultiplierJobs"]:
@@ -97,6 +103,10 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
     assert view["itemUpgradePlan"]["categorySummary"]
     assert view["itemUpgradePlan"]["primaryCategory"]["totalGain"] > 0
+    assert view["calculationAudit"]["rows"]
+    assert view["calculationAudit"]["unifiedConverted"] == view["summary"]["unifiedConverted380"]
+    assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])
+    assert any(row["label"] == "최종 상세 배율" for row in view["calculationAudit"]["rows"])
 
 
 def sample_raw(character_class: str, main_stat: str, attack_type: str, potential_line: str) -> dict:

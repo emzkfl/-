@@ -177,6 +177,7 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     audit = plan.get("repairAudit") or {}
     weakness_summary = plan.get("weaknessSummary") or []
     decision_matrix = plan.get("repairDecisionMatrix") or []
+    reliability = plan.get("reliability") or {}
     roadmap = plan.get("repairRoadmap") or []
     roadmap_summary = plan.get("roadmapSummary") or {}
 
@@ -299,6 +300,15 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
                 failures.append(f"{context}: decision expected gain missing {decision}")
             if not (decision.get("bossImpact") or {}).get("label"):
                 failures.append(f"{context}: decision boss impact label missing {decision}")
+            decision_reliability = decision.get("reliability") or {}
+            if decision_reliability.get("sourcePath") != "itemUpgradePlan.reliability":
+                failures.append(f"{context}: decision reliability source mismatch {decision}")
+            if decision_reliability.get("status") != reliability.get("status"):
+                failures.append(f"{context}: decision reliability status mismatch {decision}")
+            if decision_reliability.get("score") != reliability.get("score"):
+                failures.append(f"{context}: decision reliability score mismatch {decision}")
+            if not decision_reliability.get("label"):
+                failures.append(f"{context}: decision reliability label missing {decision}")
     if not summary_labels.issubset(weakness_labels):
         failures.append(f"{context}: weakness summary has unknown labels {sorted(summary_labels - weakness_labels)}")
     for row in weakness_summary:
@@ -466,6 +476,8 @@ def equipment_repair_annotation_failures(view: dict, context: str) -> list[str]:
             failures.append(f"{context}/{decision.get('item')}: equipment repair decision gain mismatch")
         if (repair_decision.get("bossImpact") or {}).get("label") != (decision.get("bossImpact") or {}).get("label"):
             failures.append(f"{context}/{decision.get('item')}: equipment repair decision boss impact mismatch")
+        if (repair_decision.get("reliability") or {}).get("status") != (decision.get("reliability") or {}).get("status"):
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision reliability mismatch")
     return failures
 
 

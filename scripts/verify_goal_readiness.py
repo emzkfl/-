@@ -222,6 +222,8 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
                 failures.append(f"{context}: first decision matrix gain missing")
             if not (first_decision.get("bossImpact") or {}).get("label"):
                 failures.append(f"{context}: first decision matrix boss impact missing")
+            if not (first_decision.get("reliability") or {}).get("label"):
+                failures.append(f"{context}: first decision matrix reliability missing")
         if repair_focus:
             if repair_focus.get("slot") != first.get("slot"):
                 failures.append(f"{context}: repair focus slot does not match top candidate")

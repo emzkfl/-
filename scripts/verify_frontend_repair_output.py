@@ -68,6 +68,7 @@ REQUIRED_RENDER_MARKERS = {
     "step.cumulativeBossImpact": "roadmap step cumulative boss impact",
     "decision.expectedGain": "decision matrix expected gain",
     "decision.bossImpact": "decision matrix boss impact",
+    "decision.reliability": "decision matrix reliability",
     "보스 영향": "boss impact label",
     "추천할 개선 항목이 없습니다": "empty repair state",
     "개선 후": "projected metric label",
@@ -126,6 +127,7 @@ def assert_frontend_repair_output() -> None:
         "repair.bossImpact",
         "repairDecision.rank",
         "repairDecision.bossImpact",
+        "repairDecision.reliability",
         "item-repair",
         "needs-repair",
     ):

@@ -589,7 +589,7 @@ function renderUpgradePlan(data) {
     .map((decision) => `<article class="upgrade-slot priority">
       <span>${formatNumber(decision.rank || 0)}순위 · ${escapeHtml(decision.slot || "-")}</span>
       <strong>+${formatNumber(decision.expectedGain || 0)}</strong>
-      <small>${escapeHtml(decision.recommendedType || "-")} · ${escapeHtml(decision.recommendedAction || "-")}</small>
+      <small>${escapeHtml(decision.recommendedType || "-")} · ${escapeHtml(decision.recommendedAction || "-")}${decision.reliability?.label ? ` · 신뢰 ${escapeHtml(decision.reliability.label)}` : ""}</small>
       <em>${escapeHtml(decision.item || "-")}${decision.weaknessLabel ? ` · ${escapeHtml(decision.weaknessLabel)}` : ""}${decision.bossImpact?.label ? ` · 보스 영향 ${escapeHtml(decision.bossImpact.label)}` : ""}</em>
     </article>`)
     .join("");
@@ -709,6 +709,7 @@ function renderItems(data) {
             <span>+${formatNumber(repair.expectedGain || 0)} · 개선 후 ${formatNumber(repair.metricAfter || 0)}</span>
             ${repairDecision.rank ? `<span>결정표 ${formatNumber(repairDecision.rank)}순위 · ${escapeHtml(repairDecision.decision || "-")}</span>` : ""}
             <small>${escapeHtml(repair.recommendedType || "-")} · ${escapeHtml(repair.recommendedAction || "-")}</small>
+            ${repairDecision.reliability?.label ? `<small>신뢰 ${escapeHtml(repairDecision.reliability.label)} · ${formatNumber(repairDecision.reliability.score || 0)}점</small>` : ""}
             ${(repairDecision.bossImpact?.label || repair.bossImpact?.label) ? `<small>보스 영향 ${escapeHtml(repairDecision.bossImpact?.label || repair.bossImpact.label)}</small>` : ""}
           </div>`
         : "";

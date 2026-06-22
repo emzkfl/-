@@ -1179,7 +1179,17 @@ def attach_upgrade_reliability(
     confidence: dict[str, Any],
     formula_quality: dict[str, Any],
 ) -> dict[str, Any]:
-    plan["reliability"] = upgrade_plan_reliability(plan, api_quality, confidence, formula_quality)
+    reliability = upgrade_plan_reliability(plan, api_quality, confidence, formula_quality)
+    plan["reliability"] = reliability
+    decision_reliability = {
+        "status": reliability.get("status") or "",
+        "label": reliability.get("label") or "",
+        "score": int_number(reliability.get("score")),
+        "reason": (reliability.get("reasons") or [""])[0],
+        "sourcePath": "itemUpgradePlan.reliability",
+    }
+    for decision in plan.get("repairDecisionMatrix") or []:
+        decision["reliability"] = decision_reliability
     return plan
 
 
@@ -3813,6 +3823,7 @@ def repair_decision_lookup_from_plan(plan: dict[str, Any]) -> dict[str, dict[str
             "recommendedAction": decision.get("recommendedAction") or "",
             "weaknessLabel": decision.get("weaknessLabel") or "",
             "bossImpact": decision.get("bossImpact") or {},
+            "reliability": decision.get("reliability") or {},
             "sourcePath": "itemUpgradePlan.repairDecisionMatrix",
         }
         lookup[equipment_repair_key(decision.get("slot"), decision.get("item"))] = repair_decision
@@ -4428,7 +4439,6 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         score_multiplier=unified_multiplier,
         basis=unified_basis,
     )
-    items = annotate_equipment_repairs(items, item_upgrade_plan)
     preset_optimization = optimize_presets(
         raw,
         stats,
@@ -4472,6 +4482,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     attach_upgrade_reliability(item_upgrade_plan, api_quality, confidence, formula_quality)
     for preset_plan in preset_upgrade_plans:
         attach_upgrade_reliability(preset_plan.get("plan") or {}, api_quality, confidence, formula_quality)
+    items = annotate_equipment_repairs(items, item_upgrade_plan)
     summary_values = {
         "combatPower": combat_power,
         "converted380": round(converted["converted"]),

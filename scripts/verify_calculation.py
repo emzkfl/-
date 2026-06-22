@@ -292,6 +292,38 @@ def input_source_failures(view: dict, context: str) -> list[str]:
     return failures
 
 
+def readiness_failures(view: dict, context: str, expected_statuses: set[str] | None = None) -> list[str]:
+    failures: list[str] = []
+    audit = view.get("readinessAudit") or {}
+    expected_labels = {
+        "대표 지표 신뢰도",
+        "단일 지표 연결",
+        "계산식 재검산",
+        "입력 API",
+        "직업 공식",
+        "장비 개선 추천",
+        "개선 로드맵",
+    }
+    if not audit:
+        return [f"{context}: readiness audit missing"]
+    checks = audit.get("checks") or []
+    labels = {row.get("label") for row in checks}
+    if labels != expected_labels:
+        failures.append(f"{context}: readiness checks mismatch missing={sorted(expected_labels - labels)} extra={sorted(labels - expected_labels)}")
+    if audit.get("checkCount") != len(checks):
+        failures.append(f"{context}: readiness check count mismatch")
+    if audit.get("passedCount", 0) + audit.get("failedCount", 0) != audit.get("checkCount"):
+        failures.append(f"{context}: readiness pass/fail count mismatch")
+    if audit.get("metric") != "unifiedConverted380":
+        failures.append(f"{context}: readiness metric mismatch")
+    if expected_statuses and audit.get("status") not in expected_statuses:
+        failures.append(f"{context}: readiness status {audit.get('status')} not in {expected_statuses}")
+    for row in checks:
+        if "passed" not in row or not row.get("detail"):
+            failures.append(f"{context}: readiness check incomplete {row}")
+    return failures
+
+
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
@@ -417,6 +449,7 @@ def assert_full_job_view_models() -> None:
         failures.extend(single_metric_failures(view, job))
         failures.extend(formula_integrity_failures(view, job))
         failures.extend(input_source_failures(view, job))
+        failures.extend(readiness_failures(view, job, {"ready", "caution"}))
         failures.extend(formula_manifest_failures(manifest, job, job))
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
@@ -649,6 +682,8 @@ def assert_sample_view_model() -> None:
     assert view["formulaIntegrityAudit"]["allPassed"]
     assert not input_source_failures(view, "sample 레테")
     assert view["inputSourceAudit"]["allRequiredPresent"]
+    assert not readiness_failures(view, "sample 레테", {"ready", "caution"})
+    assert view["readinessAudit"]["passedCount"] >= 6
     assert view["singleMetricAudit"]["allMatched"]
     assert view["singleMetricAudit"]["value"] == view["summary"]["unifiedConverted380"]
     assert any(row["label"] == "직업 샘플 배율" for row in view["calculationAudit"]["rows"])
@@ -803,6 +838,7 @@ def assert_api_warning_diagnostics() -> None:
     assert view["inputSourceAudit"]["allRequiredPresent"]
     assert view["inputSourceAudit"]["warningCount"] >= 1
     assert any("vmatrix" in row.get("warningSections", []) for row in view["inputSourceAudit"]["rows"])
+    assert not readiness_failures(view, "warning 레테", {"caution", "diagnostic"})
     assert view["itemUpgradePlan"]["reliability"]["status"] == "caution"
     assert any("경고" in reason for reason in view["itemUpgradePlan"]["reliability"]["reasons"])
 
@@ -824,6 +860,7 @@ def assert_unknown_job_formula_diagnostics() -> None:
     assert view["itemUpgradePlan"]["repairChecklist"]
     assert view["primaryMetric"]["confidence"]["level"] in {"low", "critical"}
     assert any("미지원" in reason for reason in view["primaryMetric"]["confidence"]["reasons"])
+    assert not readiness_failures(view, "unknown job", {"diagnostic"})
 
 
 def assert_option_line_parsing() -> None:

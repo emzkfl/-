@@ -387,6 +387,7 @@ function renderCoverage(data) {
   const quality = data.apiDataQuality || {};
   const formula = data.formulaDiagnostics || {};
   const primary = data.primaryMetric || {};
+  const readiness = data.readinessAudit || {};
   const confidence = primary.confidence || {};
   const singleMetric = data.singleMetricAudit || {};
   const manifest = data.jobFormulaManifest || {};
@@ -423,6 +424,11 @@ function renderCoverage(data) {
     .map((row) => `${row.label || row.target || "-"} ${formatNumber(row.value || 0)}`)
     .join(" · ");
   const coverageRows = [
+    coverageRow(
+      "계산 준비도",
+      `${readiness.label || "-"} · ${formatNumber(readiness.score || 0)}점`,
+      readiness.failedCount ? `점검: ${(readiness.failedLabels || []).slice(0, 3).join(" · ")}` : `${readiness.passedCount || 0} / ${readiness.checkCount || 0} 검사 통과`,
+    ),
     coverageRow(
       "대표 지표 신뢰도",
       `${confidence.label || "-"} · ${formatNumber(confidence.score || 0)}점`,

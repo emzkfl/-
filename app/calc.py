@@ -2034,6 +2034,82 @@ def build_input_source_audit(raw: dict[str, Any], api_quality: dict[str, Any]) -
     }
 
 
+def build_readiness_audit(
+    primary_metric: dict[str, Any],
+    formula_quality: dict[str, Any],
+    single_metric_audit: dict[str, Any],
+    formula_integrity_audit: dict[str, Any],
+    input_source_audit: dict[str, Any],
+    item_upgrade_plan: dict[str, Any],
+    formula_manifest: dict[str, Any],
+) -> dict[str, Any]:
+    confidence = primary_metric.get("confidence") or {}
+    repair_audit = item_upgrade_plan.get("repairAudit") or {}
+    roadmap_summary = item_upgrade_plan.get("roadmapSummary") or {}
+    current_formula = formula_manifest.get("current") or {}
+    checks = [
+        {
+            "label": "대표 지표 신뢰도",
+            "passed": int_number(confidence.get("score")) >= 70,
+            "detail": f"{confidence.get('label') or '-'} · {int_number(confidence.get('score'))}점",
+        },
+        {
+            "label": "단일 지표 연결",
+            "passed": bool(single_metric_audit.get("allMatched")),
+            "detail": single_metric_audit.get("basis") or primary_metric.get("basis") or "",
+        },
+        {
+            "label": "계산식 재검산",
+            "passed": bool(formula_integrity_audit.get("allPassed")),
+            "detail": f"{int_number(formula_integrity_audit.get('checkCount'))}개 검사",
+        },
+        {
+            "label": "입력 API",
+            "passed": bool(input_source_audit.get("allRequiredPresent")),
+            "detail": f"{int_number(input_source_audit.get('usageCount'))}개 사용처",
+        },
+        {
+            "label": "직업 공식",
+            "passed": formula_quality.get("status") == "complete" and bool(current_formula.get("matched")),
+            "detail": f"{formula_quality.get('matchedJob') or current_formula.get('job') or '-'} · {formula_quality.get('status') or '-'}",
+        },
+        {
+            "label": "장비 개선 추천",
+            "passed": bool(repair_audit.get("allPassed")) and bool(item_upgrade_plan.get("top")),
+            "detail": f"{int_number(repair_audit.get('candidateCount'))}개 후보",
+        },
+        {
+            "label": "개선 로드맵",
+            "passed": int_number(roadmap_summary.get("stepCount")) > 0,
+            "detail": f"{int_number(roadmap_summary.get('stepCount'))}단계 · +{int_number(roadmap_summary.get('cumulativeGain'))}",
+        },
+    ]
+    failed = [row for row in checks if not row["passed"]]
+    score = max(0, round(sum(1 for row in checks if row["passed"]) / len(checks) * 100)) if checks else 0
+    if not failed and int_number(confidence.get("score")) >= 90:
+        status = "ready"
+        label = "준비 완료"
+    elif int_number(confidence.get("score")) >= 70 and len(failed) <= 1:
+        status = "caution"
+        label = "주의 필요"
+    else:
+        status = "diagnostic"
+        label = "점검 필요"
+    return {
+        "status": status,
+        "label": label,
+        "score": score,
+        "metric": primary_metric.get("id") or "unifiedConverted380",
+        "basis": primary_metric.get("basis") or "",
+        "allPassed": not failed,
+        "passedCount": len(checks) - len(failed),
+        "checkCount": len(checks),
+        "failedCount": len(failed),
+        "failedLabels": [row["label"] for row in failed],
+        "checks": checks,
+    }
+
+
 def potential_lines(item: dict[str, Any], additional: bool = False) -> list[str]:
     prefix = "additional_potential_option" if additional else "potential_option"
     return [str(item.get(f"{prefix}_{idx}") or "") for idx in (1, 2, 3) if item.get(f"{prefix}_{idx}")]
@@ -3892,6 +3968,15 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         preset_optimization,
         boss_board,
     )
+    readiness_audit = build_readiness_audit(
+        primary_metric,
+        formula_quality,
+        single_metric_audit,
+        formula_integrity_audit,
+        input_source_audit,
+        item_upgrade_plan,
+        formula_manifest,
+    )
     return {
         "date": raw.get("date"),
         "basic": basic,
@@ -3911,6 +3996,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "calculationAudit": calculation_audit,
         "formulaIntegrityAudit": formula_integrity_audit,
         "singleMetricAudit": single_metric_audit,
+        "readinessAudit": readiness_audit,
         "itemUpgradePlan": item_upgrade_plan,
         "bossBoard": boss_board,
         "radar": radar(stats, converted),

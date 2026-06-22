@@ -65,8 +65,12 @@ def assert_frontend_single_metric() -> None:
         failures.append("renderScores: confidence card not populated")
     if "goal.label" not in render_scores:
         failures.append("renderScores: goal contract label is not shown with metric detail")
-    if "goal.canCompareUsers" not in render_coverage or "goal.canRecommendItems" not in render_coverage:
-        failures.append("renderCoverage: goal contract comparison/recommendation flags are not rendered")
+    if (
+        "goal.canCompareUsers" not in render_coverage
+        or "goal.canJudgeBosses" not in render_coverage
+        or "goal.canRecommendItems" not in render_coverage
+    ):
+        failures.append("renderCoverage: goal contract comparison/boss/recommendation flags are not rendered")
     if "goal.metricValue" not in render_coverage:
         failures.append("renderCoverage: goal contract metric value is not rendered")
     if "bossAudit.allPassed" not in render_coverage or "bossAudit.ratioFormula" not in render_coverage:

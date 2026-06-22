@@ -119,7 +119,7 @@ def boss_board_failures(view: dict, context: str) -> list[str]:
             failures.append(f"{context}/{row.get('name')}: boss required converted mismatch")
         if row.get("partyRatio") != party_ratio or row.get("soloRatio") != solo_ratio:
             failures.append(f"{context}/{row.get('name')}: boss ratio mismatch")
-        if row.get("partyPossible") != (party_ratio >= 100) or row.get("soloPossible") != (solo_ratio >= 100):
+        if row.get("partyPossible") != (metric_value >= party_required) or row.get("soloPossible") != (metric_value >= solo_required):
             failures.append(f"{context}/{row.get('name')}: boss possible flag mismatch")
         if row.get("baseMinutes") != BOSS_RULE_BASE_MINUTES or row.get("targetMinutes") != BOSS_RULE_TARGET_MINUTES:
             failures.append(f"{context}/{row.get('name')}: boss time basis mismatch")

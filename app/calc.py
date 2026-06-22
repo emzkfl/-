@@ -1723,7 +1723,7 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
         solo_ratio = round(metric_value / solo_required * 100, 1) if solo_required else 0.0
         row_requirement_ok = int_number(row.get("partyRequired")) == party_required and int_number(row.get("soloRequired")) == solo_required
         row_ratio_ok = same_float(float(row.get("partyRatio") or 0.0), party_ratio) and same_float(float(row.get("soloRatio") or 0.0), solo_ratio)
-        row_possible_ok = bool(row.get("partyPossible")) == (party_ratio >= 100) and bool(row.get("soloPossible")) == (solo_ratio >= 100)
+        row_possible_ok = bool(row.get("partyPossible")) == (metric_value >= party_required) and bool(row.get("soloPossible")) == (metric_value >= solo_required)
         row_time_ok = (
             int_number(row.get("baseMinutes")) == BOSS_RULE_BASE_MINUTES
             and int_number(row.get("targetMinutes")) == BOSS_RULE_TARGET_MINUTES
@@ -2213,6 +2213,7 @@ def build_goal_contract(
     single_metric_audit: dict[str, Any],
     formula_quality: dict[str, Any],
     input_source_audit: dict[str, Any],
+    boss_board_audit: dict[str, Any],
     item_upgrade_plan: dict[str, Any],
     formula_manifest: dict[str, Any],
 ) -> dict[str, Any]:
@@ -2249,6 +2250,13 @@ def build_goal_contract(
             "detail": f"{int_number(input_source_audit.get('usageCount'))}개 사용처 · {input_source_audit.get('status') or '-'}",
         },
         {
+            "id": "bossBoard",
+            "label": "보스 가능 여부",
+            "passed": bool(boss_board_audit.get("allPassed"))
+            and int_number(boss_board_audit.get("currentConverted")) == metric_value,
+            "detail": f"{int_number(boss_board_audit.get('ruleCount'))}개 · {boss_board_audit.get('ratioFormula') or '-'}",
+        },
+        {
             "id": "itemRepair",
             "label": "아이템 개선 판단",
             "passed": bool(repair_audit.get("allPassed"))
@@ -2259,8 +2267,9 @@ def build_goal_contract(
     ]
     passed = {row["id"]: bool(row["passed"]) for row in checks}
     can_compare_users = all(passed.get(key) for key in ("metricConfidence", "singleMetric", "kmsJobFormula", "apiInput"))
+    can_judge_bosses = can_compare_users and passed.get("bossBoard", False)
     can_recommend_items = can_compare_users and passed.get("itemRepair", False)
-    if can_recommend_items and int_number(confidence.get("score")) >= 90:
+    if can_judge_bosses and can_recommend_items and int_number(confidence.get("score")) >= 90:
         status = "ready"
         label = "목표 충족"
     elif can_compare_users:
@@ -2279,6 +2288,7 @@ def build_goal_contract(
         "basis": primary_metric.get("basis") or "",
         "source": primary_metric.get("source") or "",
         "canCompareUsers": can_compare_users,
+        "canJudgeBosses": can_judge_bosses,
         "canRecommendItems": can_recommend_items,
         "usedBy": {
             "bossBoard": int_number(used_by.get("bossBoard")),
@@ -2292,6 +2302,7 @@ def build_goal_contract(
         "fieldPaths": {
             "representativeMetric": "primaryMetric.value",
             "bossMetric": "bossBoard[0].currentConverted",
+            "bossAudit": "bossBoardAudit",
             "presetMetric": "presetOptimization.current.converted",
             "repairMetric": "itemUpgradePlan.currentConverted",
             "repairFocus": "itemUpgradePlan.repairFocus",
@@ -4221,6 +4232,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         single_metric_audit,
         formula_quality,
         input_source_audit,
+        boss_board_audit,
         item_upgrade_plan,
         formula_manifest,
     )

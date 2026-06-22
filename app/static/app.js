@@ -429,6 +429,7 @@ function renderCoverage(data) {
     .join(" · ");
   const goalUse = [
     goal.canCompareUsers ? "유저 비교 가능" : "유저 비교 제한",
+    goal.canJudgeBosses ? "보스 판정 가능" : "보스 판정 제한",
     goal.canRecommendItems ? "아이템 추천 가능" : "아이템 추천 제한",
   ].join(" · ");
   const goalFailed = (goal.failedCheckIds || []).slice(0, 3).join(" · ");

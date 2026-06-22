@@ -56,6 +56,8 @@ def assert_ranking_single_metric() -> None:
                 failures.append(f"{context}: goal contract metric mismatch")
             if contract.get("canCompareUsers") is not True:
                 failures.append(f"{context}: goal contract should allow user comparison")
+            if contract.get("canJudgeBosses") is not True:
+                failures.append(f"{context}: goal contract should allow boss judgment")
             if contract.get("canRecommendItems") is not False:
                 failures.append(f"{context}: goal contract should block item recommendation without item details")
             if contract.get("failedCheckIds") != ["itemRepair"]:

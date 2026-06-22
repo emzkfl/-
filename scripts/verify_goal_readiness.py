@@ -249,6 +249,7 @@ def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
     primary = view.get("primaryMetric") or {}
     summary = view.get("summary") or {}
     plan = view.get("itemUpgradePlan") or {}
+    boss_audit = view.get("bossBoardAudit") or {}
     formula_manifest = view.get("jobFormulaManifest") or {}
     current_formula = formula_manifest.get("current") or {}
     failures: list[str] = []
@@ -261,6 +262,7 @@ def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
         "basis",
         "source",
         "canCompareUsers",
+        "canJudgeBosses",
         "canRecommendItems",
         "usedBy",
         "repairFocus",
@@ -304,6 +306,8 @@ def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
         failures.append(f"{context}: goal contract repair metric mismatch")
     if not contract.get("canCompareUsers"):
         failures.append(f"{context}: goal contract does not allow user comparison")
+    if not contract.get("canJudgeBosses"):
+        failures.append(f"{context}: goal contract does not allow boss judgment")
     if not contract.get("canRecommendItems"):
         failures.append(f"{context}: goal contract does not allow item recommendation")
     if contract.get("status") not in {"ready", "caution"}:
@@ -311,9 +315,14 @@ def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
 
     checks = contract.get("checks") or []
     check_ids = {row.get("id") for row in checks}
-    expected_check_ids = {"metricConfidence", "singleMetric", "kmsJobFormula", "apiInput", "itemRepair"}
+    expected_check_ids = {"metricConfidence", "singleMetric", "kmsJobFormula", "apiInput", "bossBoard", "itemRepair"}
     if check_ids != expected_check_ids:
         failures.append(f"{context}: goal contract checks mismatch {check_ids}")
+    boss_check = next((row for row in checks if row.get("id") == "bossBoard"), {})
+    if boss_check.get("passed") is not True:
+        failures.append(f"{context}: goal contract boss check failed {boss_check}")
+    if boss_check.get("detail") != f"{boss_audit.get('ruleCount')}개 · {boss_audit.get('ratioFormula') or '-'}":
+        failures.append(f"{context}: goal contract boss check detail mismatch")
     failed_ids = [row.get("id") for row in checks if not row.get("passed")]
     if failed_ids != contract.get("failedCheckIds"):
         failures.append(f"{context}: goal contract failed ids mismatch")
@@ -324,6 +333,7 @@ def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
     expected_paths = {
         "representativeMetric": "primaryMetric.value",
         "bossMetric": "bossBoard[0].currentConverted",
+        "bossAudit": "bossBoardAudit",
         "presetMetric": "presetOptimization.current.converted",
         "repairMetric": "itemUpgradePlan.currentConverted",
         "repairFocus": "itemUpgradePlan.repairFocus",

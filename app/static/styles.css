@@ -881,6 +881,11 @@ h2 {
   line-height: 1.35;
 }
 
+.upgrade-body .upgrade-options {
+  color: #526071;
+  overflow-wrap: anywhere;
+}
+
 .upgrade-metrics {
   display: flex;
   flex-wrap: wrap;

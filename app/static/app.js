@@ -382,7 +382,8 @@ function optionLine(label, value, suffix = "") {
 function renderUpgradePlan(data) {
   const plan = data.itemUpgradePlan || {};
   const rows = plan.top || [];
-  upgradeSummary.textContent = `${escapeHtml(plan.basis || "환산(380)")} · ${formatNumber(plan.currentConverted || data.summary?.converted380 || 0)}`;
+  const targets = (plan.upgradeTargets || []).join("/");
+  upgradeSummary.textContent = `${plan.basis || "환산(380)"} · ${formatNumber(plan.currentConverted || data.summary?.converted380 || 0)}${targets ? ` · ${targets}` : ""}`;
   if (!rows.length) {
     upgradeList.innerHTML = `<article class="upgrade-card empty-card">
       <strong>추천할 개선 항목이 없습니다</strong>
@@ -407,6 +408,7 @@ function renderUpgradePlan(data) {
           </div>
           <strong>${escapeHtml(row.recommendedType)} · ${escapeHtml(row.recommendedAction)}</strong>
           <small>${escapeHtml(row.reason || "")}</small>
+          <small class="upgrade-options">잠재 ${escapeHtml(row.potentialSummary || "-")} · 에디 ${escapeHtml(row.additionalPotentialSummary || "-")}</small>
           <div class="upgrade-metrics">
             <span>예상 +${formatNumber(row.expectedGain)} (${formatNumber(row.expectedGainPercent || 0, 2)}%)</span>
             <span>현재 기여 ${formatNumber(row.contribution)}</span>

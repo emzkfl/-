@@ -31,6 +31,7 @@ OPTION_ALIASES = {
     K_MAGIC: (K_MAGIC, "magic_power"),
     K_BOSS: (K_BOSS, "boss_damage"),
     K_DAMAGE: (K_DAMAGE, "damage"),
+    K_HP: (K_HP, "max_hp", "hp"),
     "\uc62c\uc2a4\ud0ef": ("\uc62c\uc2a4\ud0ef", "all_stat"),
 }
 
@@ -426,6 +427,7 @@ def empty_profile() -> dict[str, dict[str, float]]:
             "DEX": 0.0,
             "INT": 0.0,
             "LUK": 0.0,
+            K_HP: 0.0,
             K_ATTACK: 0.0,
             K_MAGIC: 0.0,
         },
@@ -434,6 +436,7 @@ def empty_profile() -> dict[str, dict[str, float]]:
             "DEX": 0.0,
             "INT": 0.0,
             "LUK": 0.0,
+            K_HP: 0.0,
             K_ATTACK: 0.0,
             K_MAGIC: 0.0,
         },
@@ -515,6 +518,7 @@ def parse_option_line(profile: dict[str, dict[str, float]], line: str | None) ->
         "DEX": ("DEX", "\ubbfc\ucca9\uc131"),
         "INT": ("INT", "\uc9c0\ub825"),
         "LUK": ("LUK", "\uc6b4"),
+        K_HP: ("\ucd5c\ub300 HP", "Max HP", "MAX HP", "MHP", "HP"),
     }
     for key, words in stat_words.items():
         if any(word in line for word in words):
@@ -549,6 +553,7 @@ def equipment_profile(items: list[dict[str, Any]]) -> dict[str, dict[str, float]
         total = item.get("item_total_option") or {}
         for stat in STAT_KEYS:
             add_to_profile(profile, "flat", stat, option_number(total, stat))
+        add_to_profile(profile, "flat", K_HP, option_number(total, K_HP))
         add_to_profile(profile, "percent", "STR", option_number(total, "\uc62c\uc2a4\ud0ef"))
         add_to_profile(profile, "percent", "DEX", option_number(total, "\uc62c\uc2a4\ud0ef"))
         add_to_profile(profile, "percent", "INT", option_number(total, "\uc62c\uc2a4\ud0ef"))
@@ -587,7 +592,7 @@ def hyper_profile(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
 
 def apply_profile_delta(stats: dict[str, float], delta: dict[str, dict[str, float]]) -> dict[str, float]:
     adjusted = dict(stats)
-    for stat in STAT_KEYS:
+    for stat in (*STAT_KEYS, K_HP):
         adjusted[stat] = max(
             0.0,
             value_from(adjusted, stat)
@@ -1264,6 +1269,28 @@ def grade_target_percent(grade: str, weapon_like: bool = False) -> float:
     return 9.0
 
 
+def item_upgrade_stat_targets(character_class: str, main_stat: str) -> list[str]:
+    detail_rule = job_detail_rule(character_class)
+    mode = str((detail_rule or {}).get("statMode") or "single")
+    if mode == "demon_avenger":
+        return [K_HP]
+    if mode == "xenon":
+        return ["STR", "DEX", "LUK"]
+    return [main_stat]
+
+
+def target_label(targets: list[str]) -> str:
+    if targets == ["STR", "DEX", "LUK"]:
+        return "STR/DEX/LUK"
+    return " / ".join(targets)
+
+
+def starforce_target_bonus_label(targets: list[str]) -> str:
+    if targets == [K_HP]:
+        return f"{K_HP} +210"
+    return f"{target_label(targets)} +7"
+
+
 def is_weapon_like_item(item: dict[str, Any]) -> bool:
     text = " ".join(
         str(item.get(key) or "")
@@ -1303,6 +1330,21 @@ def gain_scenario(
     return item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
 
 
+def gain_multi_scenario(
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    character_class: str,
+    current_converted: float,
+    group: str,
+    keys: list[str],
+    value: float,
+) -> float:
+    delta = empty_profile()
+    for key in keys:
+        add_to_profile(delta, group, key, value)
+    return item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
+
+
 def best_item_upgrade_scenarios(
     item: dict[str, Any],
     stats: dict[str, float],
@@ -1316,6 +1358,7 @@ def best_item_upgrade_scenarios(
     weapon_like = is_weapon_like_item(item)
     potential_profile = profile_from_lines(potential_lines(item))
     additional_profile = profile_from_lines(potential_lines(item, additional=True))
+    stat_targets = item_upgrade_stat_targets(character_class, main_stat)
 
     if weapon_like:
         target_attack_percent = grade_target_percent(str(item.get("potential_option_grade") or ""), True)
@@ -1345,16 +1388,24 @@ def best_item_upgrade_scenarios(
             )
     else:
         target_main_percent = grade_target_percent(str(item.get("potential_option_grade") or ""))
-        current_main_percent = potential_profile["percent"].get(main_stat, 0.0)
+        current_main_percent = min(potential_profile["percent"].get(key, 0.0) for key in stat_targets)
         main_gap = min(12.0, max(0.0, target_main_percent - current_main_percent))
         if main_gap > 0:
-            gain = gain_scenario(stats, item_response, character_class, current_converted, "percent", main_stat, main_gap)
+            gain = gain_multi_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "percent",
+                stat_targets,
+                main_gap,
+            )
             scenarios.append(
                 {
                     "type": "\uc7a0\uc7ac\uc635\uc158",
-                    "action": f"{main_stat} {main_gap:g}% \ubcf4\uac15",
+                    "action": f"{target_label(stat_targets)} {main_gap:g}% \ubcf4\uac15",
                     "gain": gain,
-                    "reason": "\uc7a5\ube44 \uc7a0\uc7ac\uc758 \uc8fc\uc2a4\ud0ef% \ubd80\uc871\ubd84",
+                    "reason": "\uc9c1\uc5c5 \uae30\uc900 \uc7a5\ube44 \uc7a0\uc7ac% \ubd80\uc871\ubd84",
                 }
             )
 
@@ -1374,7 +1425,8 @@ def best_item_upgrade_scenarios(
     starforce = int_number(item.get("starforce"))
     if 0 < starforce < 22:
         delta = empty_profile()
-        add_to_profile(delta, "flat", main_stat, 7.0)
+        for key in stat_targets:
+            add_to_profile(delta, "flat", key, 210.0 if key == K_HP else 7.0)
         add_to_profile(delta, "flat", attack_type, 2.0)
         gain = item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
         scenarios.append(
@@ -1382,7 +1434,7 @@ def best_item_upgrade_scenarios(
                 "type": "\uc2a4\ud0c0\ud3ec\uc2a4",
                 "action": f"{starforce + 1}\uc131 \uc2dc\ub3c4",
                 "gain": gain,
-                "reason": "1\uc131 \uc0c1\uc2b9 \uac00\uc815: \uc8fc\uc2a4\ud0ef +7, \uacf5\ub9c8 +2",
+                "reason": f"1\uc131 \uc0c1\uc2b9 \uac00\uc815: {starforce_target_bonus_label(stat_targets)}, \uacf5\ub9c8 +2",
             }
         )
 
@@ -1419,6 +1471,7 @@ def build_item_upgrade_plan(
     current_converted = float(converted.get("converted") or 0.0)
     main_stat = str(converted.get("mainStat") or choose_main_stat(stats, character_class))
     attack_type = str(converted.get("attackType") or choose_attack_type(stats, character_class))
+    stat_targets = item_upgrade_stat_targets(character_class, main_stat)
     rows = []
 
     for item in items:
@@ -1451,6 +1504,7 @@ def build_item_upgrade_plan(
                 "grade": grade,
                 "additionalGrade": additional_grade,
                 "currentState": f"{starforce}성 / 잠재 {grade} / 에디 {additional_grade}",
+                "upgradeTargets": stat_targets,
                 "potentialSummary": potential_summary,
                 "additionalPotentialSummary": additional_summary,
                 "recommendedType": best["type"],
@@ -1472,12 +1526,13 @@ def build_item_upgrade_plan(
             }
         )
 
-    rows.sort(key=lambda row: (row["expectedGain"], -row["contribution"]), reverse=True)
+    rows.sort(key=lambda row: (row["priorityScore"], row["expectedGain"], -row["contribution"]), reverse=True)
     return {
         "basis": "\ud658\uc0b0(380)",
         "currentConverted": round(current_converted),
         "mainStat": main_stat,
         "attackType": attack_type,
+        "upgradeTargets": stat_targets,
         "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
         "top": rows[:8],
         "all": rows,

@@ -223,8 +223,11 @@ function renderPresetBrowser(data) {
   renderPresetButtonGroup(hyperPresetButtons, "hyperPreset", views.hyper || [], selectedPresets.hyperPreset);
 
   const combo = selectedCombination(data);
+  const plan = selectedUpgradePlan(data);
+  const topRepair = (plan.top || [])[0];
   const basis = data.presetOptimization?.basis || data.summary?.unifiedBasis || "대표 환산";
-  selectedPresetSummary.textContent = `${basis} · 장비 ${selectedPresets.itemPreset || "-"} · 어빌 ${selectedPresets.abilityPreset || "-"} · 하이퍼 ${selectedPresets.hyperPreset || "-"}`;
+  const repairText = topRepair ? ` · 우선 ${topRepair.slot || "-"} ${topRepair.name || "-"} +${formatNumber(topRepair.expectedGain || 0)}` : "";
+  selectedPresetSummary.textContent = `${basis} · 장비 ${selectedPresets.itemPreset || "-"} · 어빌 ${selectedPresets.abilityPreset || "-"} · 하이퍼 ${selectedPresets.hyperPreset || "-"}${repairText}`;
   selectedPresetValue.textContent = formatNumber(combo?.converted);
   const delta = Number(combo?.delta || 0);
   selectedPresetDelta.textContent = combo

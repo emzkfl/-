@@ -3413,6 +3413,7 @@ def build_item_upgrade_plan(
         "repairChecklist": repair_checklist,
         "repairRoadmap": repair_roadmap,
         "roadmapSummary": roadmap_summary,
+        "repairTargetCount": len(rows),
         "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
         "top": rows[:top_limit],
         "all": rows if include_all else [],
@@ -3473,6 +3474,7 @@ def build_preset_upgrade_plans(
                     "hyperPreset": hyper_no,
                     "isCurrent": item_no == active_item and ability_no == active_ability and hyper_no == active_hyper,
                 }
+                top_repair = (plan.get("top") or [{}])[0] if plan.get("top") else {}
                 plans.append(
                     {
                         "itemPreset": item_no,
@@ -3480,6 +3482,8 @@ def build_preset_upgrade_plans(
                         "hyperPreset": hyper_no,
                         "converted": round(converted_value),
                         "isCurrent": item_no == active_item and ability_no == active_ability and hyper_no == active_hyper,
+                        "repairTargetCount": int_number(plan.get("repairTargetCount")),
+                        "topRepairTarget": equipment_repair_summary(top_repair, 1) if top_repair else None,
                         "plan": plan,
                     }
                 )
@@ -3532,6 +3536,9 @@ def equipment_repair_summary(row: dict[str, Any], rank: int) -> dict[str, Any]:
     weakness = (row.get("weaknesses") or [{}])[0]
     return {
         "rank": rank,
+        "slot": row.get("slot") or "",
+        "part": row.get("part") or "",
+        "item": row.get("name") or "",
         "metric": row.get("metric") or "unifiedConverted380",
         "metricBefore": int_number(row.get("metricBefore")),
         "metricAfter": int_number(row.get("metricAfter")),

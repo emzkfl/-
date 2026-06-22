@@ -54,6 +54,7 @@ REQUIRED_PLAN_KEYS = {
     "repairChecklist",
     "repairRoadmap",
     "roadmapSummary",
+    "repairTargetCount",
     "repairAudit",
     "repairEvidence",
     "repairFocus",

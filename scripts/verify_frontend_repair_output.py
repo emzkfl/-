@@ -77,6 +77,7 @@ def assert_frontend_repair_output() -> None:
     index = INDEX.read_text(encoding="utf-8")
     app_js = APP_JS.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")
+    render_preset = function_body(app_js, "renderPresetBrowser", "applyPresetSelection")
     render_upgrade = function_body(app_js, "renderUpgradePlan", "renderItems")
     render_items = function_body(app_js, "renderItems", "point")
     failures: list[str] = []
@@ -103,6 +104,9 @@ def assert_frontend_repair_output() -> None:
         failures.append("renderUpgradePlan: item recommendation list is not populated")
     if "plan.currentConverted" not in render_upgrade or "primary.value" not in render_upgrade:
         failures.append("renderUpgradePlan: current representative metric is not shown")
+    for marker in ("selectedUpgradePlan(data)", "topRepair", "selectedPresetSummary.textContent", "우선"):
+        if marker not in render_preset:
+            failures.append(f"renderPresetBrowser: preset repair summary marker missing {marker!r}")
     for marker in (
         "item.repairRecommendation",
         "selectedRepairLookup(data)",

@@ -915,6 +915,27 @@ def assert_special_item_targets() -> None:
     assert xenon_plan["slotSummary"]
 
 
+def assert_preset_repair_summary(row: dict, context: str) -> None:
+    plan = row["plan"]
+    top = (plan.get("top") or [None])[0]
+    target = row.get("topRepairTarget")
+    assert row.get("repairTargetCount") == plan.get("repairTargetCount"), f"{context}: repair target count mismatch"
+    assert row.get("repairTargetCount") == plan.get("repairAudit", {}).get("candidateCount"), f"{context}: repair candidate count mismatch"
+    if top:
+        assert target, f"{context}: top repair target missing"
+        assert target["rank"] == 1, f"{context}: top repair target rank mismatch"
+        assert target["slot"] == top["slot"], f"{context}: top repair slot mismatch"
+        assert target["item"] == top["name"], f"{context}: top repair item mismatch"
+        assert target["metric"] == "unifiedConverted380", f"{context}: top repair metric mismatch"
+        assert target["metricBefore"] == plan["currentConverted"], f"{context}: top repair metric before mismatch"
+        assert target["metricAfter"] == top["metricAfter"], f"{context}: top repair metric after mismatch"
+        assert target["expectedGain"] == top["expectedGain"], f"{context}: top repair gain mismatch"
+        assert target["recommendedAction"] == top["recommendedAction"], f"{context}: top repair action mismatch"
+        assert target["sourcePath"] == "itemUpgradePlan.all", f"{context}: top repair source path mismatch"
+    else:
+        assert target is None, f"{context}: unexpected top repair target"
+
+
 def assert_preset_metric_basis() -> None:
     raw = sample_raw("레테", "INT", "마력", "INT : +3%")
     raw["itemEquipment"]["preset_no"] = 1
@@ -942,6 +963,7 @@ def assert_preset_metric_basis() -> None:
         "isCurrent": True,
     }
     assert current_plan["plan"]["slotSummary"]
+    assert_preset_repair_summary(current_plan, "current preset 레테")
     assert not recommendation_evidence_failures(current_plan["plan"], "current preset 레테")
     second_plan = next(row for row in view["presetUpgradePlans"] if row["itemPreset"] == 2)
     assert second_plan["plan"]["presetSelection"]["itemPreset"] == 2
@@ -949,6 +971,7 @@ def assert_preset_metric_basis() -> None:
     assert second_plan["plan"]["presetSelection"]["hyperPreset"] == second_plan["hyperPreset"]
     assert second_plan["plan"]["reliability"]["score"] == view["primaryMetric"]["confidence"]["score"]
     assert second_plan["plan"]["slotSummary"]
+    assert_preset_repair_summary(second_plan, "second preset 레테")
     assert not recommendation_evidence_failures(second_plan["plan"], "second preset 레테")
 
 

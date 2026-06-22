@@ -362,6 +362,7 @@ def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
     expected_paths = {
         "representativeMetric": "primaryMetric.value",
         "bossMetric": "bossBoard[0].currentConverted",
+        "bossEffectiveMetric": "bossBoard[0].effectiveConverted",
         "bossAudit": "bossBoardAudit",
         "presetMetric": "presetOptimization.current.converted",
         "repairMetric": "itemUpgradePlan.currentConverted",

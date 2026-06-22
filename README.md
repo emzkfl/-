@@ -54,7 +54,7 @@ python scripts\verify_all.py
 Python/JavaScript 문법 검사:
 
 ```powershell
-python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_all.py scripts\verify_calculation.py scripts\verify_calibration_tables.py scripts\verify_goal_readiness.py scripts\verify_official_job_catalog.py scripts\verify_nexon_endpoint_contract.py scripts\verify_fetch_character_contract.py scripts\verify_server_http_contract.py scripts\verify_frontend_single_metric.py scripts\verify_frontend_repair_output.py scripts\verify_ranking_single_metric.py
+python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_all.py scripts\verify_calculation.py scripts\verify_calibration_tables.py scripts\verify_goal_completion.py scripts\verify_goal_readiness.py scripts\verify_official_job_catalog.py scripts\verify_nexon_endpoint_contract.py scripts\verify_fetch_character_contract.py scripts\verify_server_http_contract.py scripts\verify_frontend_single_metric.py scripts\verify_frontend_repair_output.py scripts\verify_ranking_single_metric.py
 node --check app\static\app.js
 ```
 
@@ -63,6 +63,7 @@ node --check app\static\app.js
 ```powershell
 python scripts\verify_calculation.py
 python scripts\verify_calibration_tables.py
+python scripts\verify_goal_completion.py
 python scripts\verify_goal_readiness.py
 python scripts\verify_official_job_catalog.py
 python scripts\verify_nexon_endpoint_contract.py
@@ -74,6 +75,7 @@ python scripts\verify_ranking_single_metric.py
 ```
 
 `verify_official_job_catalog.py`는 Nexon 공식 직업소개 페이지와 로컬 직업별 계산식 목록을 비교합니다.
+`verify_goal_completion.py`는 전체 목표 기준으로 48개 직업, 레테, 단일 대표 지표, 보스별 유효 환산, API 계약, 아이템 개선 추천, 랭킹 샘플 범위를 통합 검증합니다.
 `verify_nexon_endpoint_contract.py`는 실제 조회하는 Nexon API 섹션과 계산 입력 계약이 일치하는지 확인합니다.
 `verify_fetch_character_contract.py`는 필수 API 실패는 중단하고 선택 API 실패는 진단 상태로 계산을 유지하는지 확인합니다.
 `verify_server_http_contract.py`는 `/api/health`, `/api/formulas`, `/api/character`의 HTTP 상태코드와 JSON 응답 계약을 확인합니다.

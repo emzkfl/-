@@ -486,7 +486,7 @@ function renderCoverage(data) {
     coverageRow(
       "보스 판정",
       `${bossAudit.allPassed ? "일치" : "점검 필요"} · ${formatNumber(bossAudit.ruleCount || 0)}개`,
-      `${bossAudit.ratioFormula || "currentConverted / requiredConverted * 100"} · ${formatNumber(bossAudit.baseMinutes || 30)}→${formatNumber(bossAudit.targetMinutes || 20)}분 · 체력 ${formatNumber((bossAudit.hpRatio || 0) * 100, 1)}%`,
+      `${bossAudit.ratioFormula || "effectiveConverted / requiredConverted * 100"} · ${formatNumber(bossAudit.baseMinutes || 30)}→${formatNumber(bossAudit.targetMinutes || 20)}분 · 체력 ${formatNumber((bossAudit.hpRatio || 0) * 100, 1)}%`,
     ),
     coverageRow(
       "목표 계약",

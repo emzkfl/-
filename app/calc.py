@@ -2595,6 +2595,7 @@ def build_goal_contract(
         "fieldPaths": {
             "representativeMetric": "primaryMetric.value",
             "bossMetric": "bossBoard[0].currentConverted",
+            "bossEffectiveMetric": "bossBoard[0].effectiveConverted",
             "bossAudit": "bossBoardAudit",
             "presetMetric": "presetOptimization.current.converted",
             "repairMetric": "itemUpgradePlan.currentConverted",

@@ -14,6 +14,7 @@ PYTHON_COMPILE_TARGETS = [
     "scripts/verify_all.py",
     "scripts/verify_calculation.py",
     "scripts/verify_calibration_tables.py",
+    "scripts/verify_goal_completion.py",
     "scripts/verify_goal_readiness.py",
     "scripts/verify_official_job_catalog.py",
     "scripts/verify_nexon_endpoint_contract.py",
@@ -27,6 +28,7 @@ PYTHON_COMPILE_TARGETS = [
 VERIFY_SCRIPTS = [
     "scripts/verify_calculation.py",
     "scripts/verify_calibration_tables.py",
+    "scripts/verify_goal_completion.py",
     "scripts/verify_goal_readiness.py",
     "scripts/verify_official_job_catalog.py",
     "scripts/verify_nexon_endpoint_contract.py",

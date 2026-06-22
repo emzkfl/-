@@ -27,7 +27,7 @@ http://127.0.0.1:4176/
 Python/JavaScript 문법 검사:
 
 ```powershell
-python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_calculation.py scripts\verify_calibration_tables.py
+python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_calculation.py scripts\verify_calibration_tables.py scripts\verify_goal_readiness.py
 node --check app\static\app.js
 ```
 
@@ -36,6 +36,7 @@ node --check app\static\app.js
 ```powershell
 python scripts\verify_calculation.py
 python scripts\verify_calibration_tables.py
+python scripts\verify_goal_readiness.py
 ```
 
 ## Render 배포

@@ -2833,10 +2833,37 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
 
     union = raw.get("union") or {}
     api_quality = api_data_quality(raw)
+    primary_metric = {
+        "id": "unifiedConverted380",
+        "label": "대표 환산(380)",
+        "basis": unified_basis,
+        "value": boss_basis,
+        "rawValue": round(unified_converted, 2),
+        "armor": ARMOR,
+        "source": "hexaConverted380",
+        "description": "보스 가능 여부, 아이템 개선 순서, 프리셋 비교에 공통으로 쓰는 단일 대표 지표입니다.",
+        "status": "ready" if formula_quality["status"] == "complete" and api_quality["requiredPresent"] == api_quality["requiredTotal"] else "diagnostic",
+        "diagnostics": {
+            "formulaStatus": formula_quality["status"],
+            "apiStatus": api_quality["status"],
+            "apiWarningCount": api_quality["warningCount"],
+        },
+        "usedBy": {
+            "bossBoard": boss_basis,
+            "itemUpgradePlan": item_upgrade_plan["currentConverted"],
+            "presetOptimization": (preset_optimization.get("current") or {}).get("converted") or boss_basis,
+        },
+        "comparison": {
+            "detailConverted380": round(converted["converted"]),
+            "hexaConverted380": round(hexa_converted["converted"]),
+            "legacyConverted380": round(converted["legacyConverted"]),
+        },
+    }
     return {
         "date": raw.get("date"),
         "basic": basic,
         "stats": stats,
+        "primaryMetric": primary_metric,
         "summary": {
             "combatPower": combat_power,
             "converted380": round(converted["converted"]),

@@ -147,10 +147,11 @@ function renderProfileIcons(items) {
 
 function renderScores(data) {
   const summary = data.summary || {};
+  const primary = data.primaryMetric || {};
   combatPower.textContent = koreanPower(summary.combatPower);
-  convertedPower.textContent = formatNumber(summary.unifiedConverted380 || summary.hexaConverted380 || summary.converted380);
+  convertedPower.textContent = formatNumber(primary.value || summary.unifiedConverted380 || summary.hexaConverted380 || summary.converted380);
   hexaPower.textContent = formatNumber(summary.hexaConverted380);
-  hexaDetail.textContent = `스킬 Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 완성도 ${formatNumber(summary.hexaCompletionPercent || 100, 2)}%`;
+  hexaDetail.textContent = `${primary.label || "대표 지표"} 기준 · HEXA Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 완성도 ${formatNumber(summary.hexaCompletionPercent || 100, 2)}%`;
 }
 
 function presetByNo(rows, no) {
@@ -251,8 +252,9 @@ function setActiveTab(tabName) {
 }
 
 function renderBosses(data) {
-  const converted = data.summary?.unifiedConverted380 || data.summary?.bossBasisConverted380 || data.summary?.converted380;
-  bossBasis.textContent = `${data.summary?.unifiedBasis || "대표 환산"} ${formatNumber(converted)} · 20분 체력보정 기준`;
+  const primary = data.primaryMetric || {};
+  const converted = primary.value || data.summary?.unifiedConverted380 || data.summary?.bossBasisConverted380 || data.summary?.converted380;
+  bossBasis.textContent = `${primary.label || data.summary?.unifiedBasis || "대표 환산"} ${formatNumber(converted)} · 20분 체력보정 기준`;
   bossList.innerHTML = (data.bossBoard || [])
     .map(
       (boss) => `<article class="boss-card" data-tone="${escapeHtml(boss.tone)}">
@@ -435,12 +437,13 @@ function optionLine(label, value, suffix = "") {
 
 function renderUpgradePlan(data) {
   const plan = selectedUpgradePlan(data);
+  const primary = data.primaryMetric || {};
   const rows = plan.top || [];
   const targets = (plan.upgradeTargets || []).join("/");
   const presetLabel = selectedPresets.itemPreset ? ` · 장비 ${selectedPresets.itemPreset}/어빌 ${selectedPresets.abilityPreset || "-"}/하이퍼 ${selectedPresets.hyperPreset || "-"}` : "";
   const focus = plan.repairFocus || {};
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
-  upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${focusText}`;
+  upgradeSummary.textContent = `${primary.label || plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || primary.value || data.summary?.unifiedConverted380 || 0)}${presetLabel}${targets ? ` · ${targets}` : ""}${focusText}`;
   const checklistCards = (plan.repairChecklist || [])
     .slice(0, 3)
     .map((row) => `<article class="upgrade-slot priority">

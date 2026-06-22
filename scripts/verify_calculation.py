@@ -109,9 +109,16 @@ def assert_full_job_view_models() -> None:
             continue
 
         summary = view["summary"]
+        primary = view["primaryMetric"]
         coverage = view["calculationCoverage"]["current"]
         formula = view["formulaDiagnostics"]
         plan = view["itemUpgradePlan"]
+        if primary["value"] != summary["unifiedConverted380"]:
+            failures.append(f"{job}: primary metric does not match unified score")
+        if primary["usedBy"]["bossBoard"] != primary["value"]:
+            failures.append(f"{job}: boss board basis does not use primary metric")
+        if primary["usedBy"]["itemUpgradePlan"] != primary["value"]:
+            failures.append(f"{job}: item plan does not use primary metric")
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
         if formula["status"] != "complete":
@@ -206,6 +213,7 @@ def assert_sample_view_model() -> None:
     view = build_view_model(raw)
     coverage = view["calculationCoverage"]
     api_quality = view["apiDataQuality"]
+    primary = view["primaryMetric"]
     assert api_quality["requiredPresent"] == 3
     assert api_quality["requiredTotal"] == 3
     assert api_quality["missingRequiredSections"] == []
@@ -215,6 +223,13 @@ def assert_sample_view_model() -> None:
     assert view["summary"]["formulaStatus"] == "complete"
     assert view["formulaDiagnostics"]["matchedJob"] == "레테"
     assert view["formulaDiagnostics"]["knownJobsCovered"]
+    assert primary["id"] == "unifiedConverted380"
+    assert primary["label"] == "대표 환산(380)"
+    assert primary["value"] == view["summary"]["unifiedConverted380"]
+    assert primary["usedBy"]["bossBoard"] == primary["value"]
+    assert primary["usedBy"]["itemUpgradePlan"] == primary["value"]
+    assert primary["usedBy"]["presetOptimization"] == primary["value"]
+    assert primary["comparison"]["hexaConverted380"] == primary["value"]
     assert coverage["targetJobs"] >= 48
     assert coverage["current"]["job"] == "레테"
     assert view["summary"]["mainStat"] == "INT"

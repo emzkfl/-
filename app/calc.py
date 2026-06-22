@@ -2336,6 +2336,7 @@ def build_item_upgrade_plan(
                 "recommendedType": best["type"],
                 "recommendedAction": best["action"],
                 "reason": best["reason"],
+                "scoreBasis": basis,
                 "expectedGain": round(best["gain"]),
                 "expectedGainPercent": round(best["gain"] / current_converted * 100, 2) if current_converted else 0.0,
                 "contribution": round(contribution),
@@ -2345,6 +2346,8 @@ def build_item_upgrade_plan(
                         "type": scenario["type"],
                         "action": scenario["action"],
                         "gain": round(scenario["gain"]),
+                        "gainPercent": round(scenario["gain"] / current_converted * 100, 2) if current_converted else 0.0,
+                        "reason": scenario.get("reason") or "",
                     }
                     for scenario in scenarios[:3]
                     if scenario["gain"] > 0

@@ -163,6 +163,22 @@ def assert_full_job_view_models() -> None:
             failures.append(f"{job}: item plan current score mismatch")
         if not plan["top"]:
             failures.append(f"{job}: no item repair recommendations")
+        for row in plan.get("top") or []:
+            scenarios = row.get("scenarios") or []
+            if not scenarios:
+                failures.append(f"{job}/{row.get('name')}: scenarios missing")
+                continue
+            gains = [scenario["gain"] for scenario in scenarios]
+            if gains != sorted(gains, reverse=True):
+                failures.append(f"{job}/{row.get('name')}: scenarios not sorted {gains}")
+            if row["expectedGain"] != scenarios[0]["gain"]:
+                failures.append(f"{job}/{row.get('name')}: expected gain does not match first scenario")
+            if row["expectedGainPercent"] <= 0 or scenarios[0]["gainPercent"] <= 0:
+                failures.append(f"{job}/{row.get('name')}: gain percent missing")
+            if row.get("scoreBasis") != plan["basis"]:
+                failures.append(f"{job}/{row.get('name')}: score basis mismatch")
+            if not scenarios[0].get("reason"):
+                failures.append(f"{job}/{row.get('name')}: first scenario reason missing")
         if not plan["efficiencyProfile"]:
             failures.append(f"{job}: no upgrade efficiency profile")
         elif plan["primaryEfficiency"] != plan["efficiencyProfile"][0]:
@@ -310,6 +326,10 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"]
     assert view["itemUpgradePlan"]["top"][0]["priorityScore"] > 0
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
+    assert view["itemUpgradePlan"]["top"][0]["scoreBasis"] == view["itemUpgradePlan"]["basis"]
+    assert view["itemUpgradePlan"]["top"][0]["expectedGain"] == view["itemUpgradePlan"]["top"][0]["scenarios"][0]["gain"]
+    assert view["itemUpgradePlan"]["top"][0]["scenarios"][0]["gainPercent"] > 0
+    assert view["itemUpgradePlan"]["top"][0]["scenarios"][0]["reason"]
     assert view["itemUpgradePlan"]["efficiencyProfile"]
     assert view["itemUpgradePlan"]["primaryEfficiency"] == view["itemUpgradePlan"]["efficiencyProfile"][0]
     assert view["itemUpgradePlan"]["primaryEfficiency"]["gain"] > 0

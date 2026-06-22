@@ -503,7 +503,7 @@ function renderUpgradePlan(data) {
   upgradeList.innerHTML = rows
     .map((row, index) => {
       const scenarios = (row.scenarios || [])
-        .map((scenario) => `<em>${escapeHtml(scenario.type)} · ${escapeHtml(scenario.action)} · +${formatNumber(scenario.gain)}</em>`)
+        .map((scenario) => `<em>${escapeHtml(scenario.type)} · ${escapeHtml(scenario.action)} · +${formatNumber(scenario.gain)} (${formatNumber(scenario.gainPercent || 0, 2)}%)</em>`)
         .join("");
       const weaknesses = (row.weaknesses || [])
         .map((weakness) => `<em>${escapeHtml(weakness.label)} ${formatNumber(weakness.current, 1)}${escapeHtml(weakness.unit || "")}/${formatNumber(weakness.target, 1)}${escapeHtml(weakness.unit || "")}</em>`)

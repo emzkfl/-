@@ -1,0 +1,1700 @@
+from __future__ import annotations
+
+import math
+import re
+from typing import Any
+
+
+ARMOR = 380
+STAT_KEYS = ("STR", "DEX", "INT", "LUK")
+CONVERTED_STAT_SCALE = 4.0
+REGULAR_DAMAGE_BOSS_WEIGHT = 0.0
+
+K_ATTACK = "\uacf5\uaca9\ub825"
+K_MAGIC = "\ub9c8\ub825"
+K_DAMAGE = "\ub370\ubbf8\uc9c0"
+K_BOSS = "\ubcf4\uc2a4 \ubaac\uc2a4\ud130 \ub370\ubbf8\uc9c0"
+K_FINAL = "\ucd5c\uc885 \ub370\ubbf8\uc9c0"
+K_IED = "\ubc29\uc5b4\uc728 \ubb34\uc2dc"
+K_CRIT_RATE = "\ud06c\ub9ac\ud2f0\uceec \ud655\ub960"
+K_CRIT_DAMAGE = "\ud06c\ub9ac\ud2f0\uceec \ub370\ubbf8\uc9c0"
+K_ELEMENTAL = "\uc18d\uc131 \ub0b4\uc131 \ubb34\uc2dc"
+K_COMBAT = "\uc804\ud22c\ub825"
+K_HP = "\ucd5c\ub300 HP"
+
+OPTION_ALIASES = {
+    "STR": ("STR", "str"),
+    "DEX": ("DEX", "dex"),
+    "INT": ("INT", "int"),
+    "LUK": ("LUK", "luk"),
+    K_ATTACK: (K_ATTACK, "attack_power"),
+    K_MAGIC: (K_MAGIC, "magic_power"),
+    K_BOSS: (K_BOSS, "boss_damage"),
+    K_DAMAGE: (K_DAMAGE, "damage"),
+    "\uc62c\uc2a4\ud0ef": ("\uc62c\uc2a4\ud0ef", "all_stat"),
+}
+
+STAT_NAME_ALIASES = {
+    K_ATTACK: (K_ATTACK, "attack_power"),
+    K_MAGIC: (K_MAGIC, "magic_attack", "magic_power"),
+    K_DAMAGE: (K_DAMAGE, "damage"),
+    K_BOSS: (K_BOSS, "\ubcf4\uc2a4 \ub370\ubbf8\uc9c0", "boss_damage_multiplier"),
+    K_FINAL: (K_FINAL, "final_damage_multiplier"),
+    K_IED: (K_IED, "ignored_defence"),
+    K_CRIT_RATE: (K_CRIT_RATE, "critical_rate"),
+    K_CRIT_DAMAGE: (K_CRIT_DAMAGE, "critical_damage"),
+    K_ELEMENTAL: (K_ELEMENTAL, "\uc18d\uc131 \ub0b4\uc131 \ubb34\uc2dc %", "elemental_resistance"),
+    K_COMBAT: (K_COMBAT, "Combat Power", "combat_power"),
+    K_HP: (K_HP, "HP", "MHP", "max_hp"),
+}
+
+WEAPON_CONSTANT_BY_PART = {
+    "\ud55c\uc190\uac80": 1.2,
+    "\ud55c\uc190\ub3c4\ub07c": 1.2,
+    "\ud55c\uc190\ub454\uae30": 1.2,
+    "\ub2e8\uac80": 1.3,
+    "\ucf00\uc778": 1.3,
+    "\uc644\ub4dc": 1.2,
+    "\uc2a4\ud0dc\ud504": 1.2,
+    "\ub450\uc190\uac80": 1.34,
+    "\ub450\uc190\ub3c4\ub07c": 1.34,
+    "\ub450\uc190\ub454\uae30": 1.34,
+    "\ucc3d": 1.49,
+    "\ud3f4\uc554": 1.49,
+    "\ud65c": 1.3,
+    "\uc11d\uad81": 1.35,
+    "\uc544\ub300": 1.75,
+    "\ub108\ud074": 1.7,
+    "\uac74": 1.5,
+    "\ub4c0\uc5bc\ubcf4\uc6b0\uac74": 1.3,
+    "\ud578\ub4dc\uce90\ub17c": 1.5,
+    "\ub370\uc2a4\ud398\ub77c\ub3c4": 1.3,
+    "\uc5d0\ub108\uc9c0\uc18c\ub4dc": 1.5,
+    "\uccb4\uc778": 1.3,
+    "\ubd80\ucc44": 1.3,
+    "\ud29c\ub108": 1.3,
+    "\ube0c\ub808\uc2a4 \uc288\ud130": 1.3,
+    "\uc5d0\uc778\uc158\ud2b8 \ubcf4\uc6b0": 1.3,
+    "\ub9e4\uc9c1 \uac74\ud2c0\ub81b": 1.2,
+    "ESP \ub9ac\ubbf8\ud130": 1.2,
+    "\uc0e4\uc774\ub2dd \ub85c\ub4dc": 1.2,
+    "\uc18c\uc6b8 \uc288\ud130": 1.7,
+    "\uac74\ud2c0\ub81b \ub9ac\ubcfc\ubc84": 1.7,
+    "\ucc28\ud06c\ub78c": 1.3,
+    "\ud0dc\ub3c4": 1.49,
+    "\ub300\uac80": 1.49,
+    "\ub77c\ud53c\uc2a4": 1.49,
+    "\ub77c\uc990\ub9ac": 1.49,
+}
+
+MASTERY_BY_PART = {
+    "\uc644\ub4dc": 0.96,
+    "\uc2a4\ud0dc\ud504": 0.96,
+    "\ub9e4\uc9c1 \uac74\ud2c0\ub81b": 0.96,
+    "ESP \ub9ac\ubbf8\ud130": 0.96,
+    "\uc0e4\uc774\ub2dd \ub85c\ub4dc": 0.96,
+    "\ud65c": 0.86,
+    "\uc11d\uad81": 0.86,
+    "\ub4c0\uc5bc\ubcf4\uc6b0\uac74": 0.86,
+    "\uc5d0\uc778\uc158\ud2b8 \ubcf4\uc6b0": 0.86,
+    "\ube0c\ub808\uc2a4 \uc288\ud130": 0.86,
+    "\uac74": 0.86,
+    "\ud578\ub4dc\uce90\ub17c": 0.86,
+    "\uc544\ub300": 0.86,
+}
+
+DEFAULT_WEAPON_CONSTANT = 1.3
+DEFAULT_MASTERY = 0.91
+STAT_PERCENT_EFFECT_RATIO = 0.16
+ATTACK_PERCENT_EFFECT_RATIO = 0.4
+HEXA_MAIN_LEVEL_MULTIPLIER = (0, 1, 2, 3, 4, 6, 8, 10, 13, 16, 20)
+HEXA_SKILL_EFFECT_PER_LEVEL = 0.00035
+HEXA_SKILL_EFFECT_CAP = 0.2
+HEXA_COMPLETION_LEVEL_CAP = 780
+HEXA_INCOMPLETE_BASE_RATIO = 0.835
+
+JOB_CONVERTED_MULTIPLIERS = [
+    {"keywords": ("나이트로드", "나로"), "multiplier": 0.732874},
+    {"keywords": ("나이트워커", "나워"), "multiplier": 0.759540},
+    {"keywords": ("다크나이트", "닼나"), "multiplier": 0.554204},
+    {"keywords": ("데몬슬레이어", "데슬"), "multiplier": 1.079699},
+    {"keywords": ("데몬어벤져", "데벤"), "multiplier": 4.345210},
+    {"keywords": ("듀얼블레이드", "듀블"), "multiplier": 0.814065},
+    {"keywords": ("라라",), "multiplier": 0.818853},
+    {"keywords": ("레테",), "multiplier": 0.814100},
+    {"keywords": ("렌",), "multiplier": 0.789977},
+    {"keywords": ("루미너스",), "multiplier": 0.837897},
+    {"keywords": ("메르세데스",), "multiplier": 0.796837},
+    {"keywords": ("메카닉",), "multiplier": 0.877388},
+    {"keywords": ("미하일",), "multiplier": 0.828985},
+    {"keywords": ("바이퍼",), "multiplier": 0.643093},
+    {"keywords": ("배틀메이지", "배메"), "multiplier": 0.854250},
+    {"keywords": ("보우마스터", "보마"), "multiplier": 0.665563},
+    {"keywords": ("블래스터",), "multiplier": 0.780192},
+    {"keywords": ("비숍",), "multiplier": 0.573232},
+    {"keywords": ("섀도어",), "multiplier": 0.557984},
+    {"keywords": ("소울마스터", "소마"), "multiplier": 0.889391},
+    {"keywords": ("스트라이커",), "multiplier": 0.867825},
+    {"keywords": ("신궁",), "multiplier": 0.789414},
+    {"keywords": ("아델",), "multiplier": 0.648223},
+    {"keywords": ("아란",), "multiplier": 0.877694},
+    {"keywords": ("아크",), "multiplier": 0.850588},
+    {"keywords": ("아크메이지(불,독)", "불독"), "multiplier": 0.612405},
+    {"keywords": ("아크메이지(썬,콜)", "썬콜"), "multiplier": 0.501773},
+    {"keywords": ("에반",), "multiplier": 0.802846},
+    {"keywords": ("엔젤릭버스터", "엔버"), "multiplier": 0.804773},
+    {"keywords": ("와일드헌터", "와헌"), "multiplier": 0.724107},
+    {"keywords": ("윈드브레이커", "윈브"), "multiplier": 0.693556},
+    {"keywords": ("은월",), "multiplier": 0.616369},
+    {"keywords": ("일리움",), "multiplier": 0.702077},
+    {"keywords": ("제논",), "multiplier": 1.097595},
+    {"keywords": ("제로",), "multiplier": 0.939693},
+    {"keywords": ("카데나",), "multiplier": 1.024886},
+    {"keywords": ("카이저",), "multiplier": 0.922322},
+    {"keywords": ("카인",), "multiplier": 0.665494},
+    {"keywords": ("칼리",), "multiplier": 0.768886},
+    {"keywords": ("캐논슈터", "캐논"), "multiplier": 0.775574},
+    {"keywords": ("캡틴",), "multiplier": 0.815222},
+    {"keywords": ("키네시스",), "multiplier": 0.657032},
+    {"keywords": ("팔라딘",), "multiplier": 0.805109},
+    {"keywords": ("패스파인더", "패파"), "multiplier": 0.748340},
+    {"keywords": ("팬텀",), "multiplier": 0.807691},
+    {"keywords": ("플레임위자드", "플위"), "multiplier": 0.738814},
+    {"keywords": ("호영",), "multiplier": 0.421200},
+    {"keywords": ("히어로",), "multiplier": 0.881803},
+]
+
+COMBAT_CONVERTED_LOG_COEFFICIENTS = (
+    -289.296670981936,
+    42.84563887852173,
+    -2.043242546031638,
+    0.0326515722995472,
+)
+COMBAT_CONVERTED_JOB_FACTORS = [
+    {"keywords": ("나이트로드", "나로"), "factor": 1.000000},
+    {"keywords": ("나이트워커", "나워"), "factor": 0.999364},
+    {"keywords": ("다크나이트", "닼나"), "factor": 1.007784},
+    {"keywords": ("데몬슬레이어", "데슬"), "factor": 1.000657},
+    {"keywords": ("듀얼블레이드", "듀블"), "factor": 0.968829},
+    {"keywords": ("라라",), "factor": 1.012604},
+    {"keywords": ("레테",), "factor": 0.845707},
+    {"keywords": ("렌",), "factor": 0.999091},
+    {"keywords": ("루미너스",), "factor": 1.006563},
+    {"keywords": ("메르세데스",), "factor": 1.008429},
+    {"keywords": ("메카닉",), "factor": 1.011004},
+    {"keywords": ("미하일",), "factor": 1.003788},
+    {"keywords": ("바이퍼",), "factor": 1.000166},
+    {"keywords": ("배틀메이지", "배메"), "factor": 0.998542},
+    {"keywords": ("보우마스터", "보마"), "factor": 1.005053},
+    {"keywords": ("블래스터",), "factor": 0.996491},
+    {"keywords": ("비숍",), "factor": 0.996929},
+    {"keywords": ("섀도어",), "factor": 0.991981},
+    {"keywords": ("소울마스터", "소마"), "factor": 1.000068},
+    {"keywords": ("스트라이커",), "factor": 1.005243},
+    {"keywords": ("신궁",), "factor": 1.004583},
+    {"keywords": ("아델",), "factor": 1.004818},
+    {"keywords": ("아란",), "factor": 1.000721},
+    {"keywords": ("아크",), "factor": 1.011641},
+    {"keywords": ("아크메이지(불,독)", "불독"), "factor": 1.003958},
+    {"keywords": ("아크메이지(썬,콜)", "썬콜"), "factor": 0.997970},
+    {"keywords": ("에반",), "factor": 0.993592},
+    {"keywords": ("엔젤릭버스터", "엔버"), "factor": 1.004951},
+    {"keywords": ("와일드헌터", "와헌"), "factor": 1.012764},
+    {"keywords": ("윈드브레이커", "윈브"), "factor": 1.010677},
+    {"keywords": ("은월",), "factor": 1.003569},
+    {"keywords": ("일리움",), "factor": 1.008377},
+    {"keywords": ("제로",), "factor": 1.013275},
+    {"keywords": ("카데나",), "factor": 1.007739},
+    {"keywords": ("카이저",), "factor": 1.017017},
+    {"keywords": ("카인",), "factor": 1.012999},
+    {"keywords": ("칼리",), "factor": 1.011210},
+    {"keywords": ("캐논슈터", "캐논"), "factor": 1.002117},
+    {"keywords": ("캡틴",), "factor": 1.003511},
+    {"keywords": ("키네시스",), "factor": 1.003683},
+    {"keywords": ("팔라딘",), "factor": 1.002168},
+    {"keywords": ("패스파인더", "패파"), "factor": 1.015147},
+    {"keywords": ("팬텀",), "factor": 1.008143},
+    {"keywords": ("플레임위자드", "플위"), "factor": 1.007337},
+    {"keywords": ("호영",), "factor": 1.006213},
+    {"keywords": ("히어로",), "factor": 0.998370},
+]
+SPECIAL_COMBAT_CONVERTED_MODELS = [
+    {
+        "keywords": ("데몬어벤져", "데벤"),
+        "model": "special_combat_curve_da",
+        "coefficients": (10.952153605527894, 0.03872955282535175),
+    },
+    {
+        "keywords": ("제논",),
+        "model": "special_combat_curve_xenon",
+        "coefficients": (11.138032201954397, 0.03041126015592686),
+    },
+]
+COMBAT_CONVERTED_LEGACY_JOBS: tuple[str, ...] = ()
+SPECIAL_DETAIL_HYBRID_MODELS = [
+    {
+        "keywords": ("데몬어벤져", "데벤"),
+        "model": "job_special_detail_hybrid_da",
+        "coefficients": (10.833193155636305, 0.016146702169708933, 0.03582054180791547),
+    },
+    {
+        "keywords": ("제논",),
+        "model": "job_special_detail_hybrid_xenon",
+        "coefficients": (11.072575103615529, 0.04893282860182904, 0.005844120240517684),
+    },
+]
+
+
+JOB_RULES = [
+    {
+        "keywords": (
+            "히어로",
+            "팔라딘",
+            "다크나이트",
+            "소울마스터",
+            "미하일",
+            "블래스터",
+            "데몬슬레이어",
+            "아란",
+            "카이저",
+            "아델",
+            "제로",
+            "바이퍼",
+            "캐논",
+            "스트라이커",
+            "은월",
+            "아크",
+            "렌",
+        ),
+        "mainStat": "STR",
+        "attackType": K_ATTACK,
+    },
+    {
+        "keywords": (
+            "보우마스터",
+            "신궁",
+            "패스파인더",
+            "윈드브레이커",
+            "와일드헌터",
+            "메르세데스",
+            "카인",
+            "캡틴",
+            "메카닉",
+            "엔젤릭버스터",
+        ),
+        "mainStat": "DEX",
+        "attackType": K_ATTACK,
+    },
+    {
+        "keywords": (
+            "아크메이지",
+            "비숍",
+            "플레임위자드",
+            "배틀메이지",
+            "에반",
+            "루미너스",
+            "일리움",
+            "라라",
+            "레테",
+            "키네시스",
+        ),
+        "mainStat": "INT",
+        "attackType": K_MAGIC,
+    },
+    {
+        "keywords": (
+            "나이트로드",
+            "섀도어",
+            "듀얼블레이드",
+            "나이트워커",
+            "팬텀",
+            "카데나",
+            "칼리",
+            "호영",
+        ),
+        "mainStat": "LUK",
+        "attackType": K_ATTACK,
+    },
+]
+
+JOB_DETAIL_RULES = [
+    {"keywords": ("나이트로드", "나로"), "mainStat": "LUK", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.75, "mastery": 0.86, "calibratedWeaponConstant": 1.75},
+    {"keywords": ("나이트워커", "나워"), "mainStat": "LUK", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.75, "mastery": 0.86, "calibratedWeaponConstant": 1.75},
+    {"keywords": ("다크나이트", "닼나"), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.49, "mastery": 0.91, "calibratedWeaponConstant": 1.49},
+    {"keywords": ("데몬슬레이어", "데슬"), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("데몬어벤져", "데벤"), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "statMode": "demon_avenger", "detailScale": 1.8950349828348878, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("듀얼블레이드", "듀블"), "mainStat": "LUK", "subStats": ("DEX", "STR"), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "statMode": "dual_sub", "calibratedWeaponConstant": 1.3},
+    {"keywords": ("라라",), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.5, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("레테",), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.3, "mastery": 0.96, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("렌",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("루미너스",), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("메르세데스",), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.86, "calibratedWeaponConstant": 1.5},
+    {"keywords": ("메카닉",), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.5, "mastery": 0.86, "calibratedWeaponConstant": 1.5},
+    {"keywords": ("미하일",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.2, "mastery": 0.91, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("바이퍼",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.7, "mastery": 0.91, "calibratedWeaponConstant": 1.7},
+    {"keywords": ("배틀메이지", "배메"), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("보우마스터", "보마"), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.86, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("블래스터",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.7, "mastery": 0.91, "calibratedWeaponConstant": 1.5},
+    {"keywords": ("비숍",), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("섀도어",), "mainStat": "LUK", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("소울마스터", "소마"), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.34, "mastery": 0.91, "calibratedWeaponConstant": 1.34},
+    {"keywords": ("스트라이커",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.7, "mastery": 0.91, "calibratedWeaponConstant": 1.7},
+    {"keywords": ("신궁",), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.35, "mastery": 0.86, "calibratedWeaponConstant": 1.35},
+    {"keywords": ("아델",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.7},
+    {"keywords": ("아란",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.49, "mastery": 0.91, "calibratedWeaponConstant": 1.49},
+    {"keywords": ("아크",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.7, "mastery": 0.91, "calibratedWeaponConstant": 1.7},
+    {"keywords": ("아크메이지(불,독)", "불독"), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("아크메이지(썬,콜)", "썬콜"), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("에반",), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("엔젤릭버스터", "엔버"), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.7, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("와일드헌터", "와헌"), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.35, "mastery": 0.86, "calibratedWeaponConstant": 1.35},
+    {"keywords": ("윈드브레이커", "윈브"), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.86, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("은월",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.7, "mastery": 0.91, "calibratedWeaponConstant": 1.7},
+    {"keywords": ("일리움",), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.5},
+    {"keywords": ("제논",), "mainStat": "LUK", "subStats": ("STR", "DEX"), "attackType": K_ATTACK, "weaponConstant": 1.5, "mastery": 0.91, "statMode": "xenon", "detailScale": 1.0626748183675614, "calibratedWeaponConstant": 1.5},
+    {"keywords": ("제로",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.49, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("카데나",), "mainStat": "LUK", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("카이저",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.34, "mastery": 0.91, "calibratedWeaponConstant": 1.34},
+    {"keywords": ("카인",), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.86, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("칼리",), "mainStat": "LUK", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("캐논슈터", "캐논"), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.5, "mastery": 0.86, "calibratedWeaponConstant": 1.5},
+    {"keywords": ("캡틴",), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.5, "mastery": 0.86, "calibratedWeaponConstant": 1.5},
+    {"keywords": ("키네시스",), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("팔라딘",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.34, "mastery": 0.91, "calibratedWeaponConstant": 1.34},
+    {"keywords": ("패스파인더", "패파"), "mainStat": "DEX", "subStats": ("STR",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.86, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("팬텀",), "mainStat": "LUK", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("플레임위자드", "플위"), "mainStat": "INT", "subStats": ("LUK",), "attackType": K_MAGIC, "weaponConstant": 1.2, "mastery": 0.96, "calibratedWeaponConstant": 1.2},
+    {"keywords": ("호영",), "mainStat": "LUK", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.3, "mastery": 0.91, "calibratedWeaponConstant": 1.3},
+    {"keywords": ("히어로",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.34, "mastery": 0.91, "calibratedWeaponConstant": 1.34},
+]
+
+BOSS_RULES = [
+    {"name": "\ud558\ub4dc \uc720\ud53c\ud14c\ub974", "party": 188000, "solo": 430000},
+    {"name": "\ub178\ub9d0 \uc720\ud53c\ud14c\ub974", "party": 241000, "solo": 520000},
+    {"name": "\ud558\ub4dc \ubc1c\ub4dc\ub9ad\uc2a4", "party": 89000, "solo": 170000},
+    {"name": "\uc775\uc2a4\ud2b8\ub9bc \ub300\uc801\uc790", "party": 292000, "solo": 620000},
+    {"name": "\ud558\ub4dc \ub9bc\ubcf4", "party": 293000, "solo": 600000},
+    {"name": "\ub178\ub9d0 \ub9bc\ubcf4", "party": 247000, "solo": 480000},
+    {"name": "\uc775\uc2a4\ud2b8\ub9bc \uce74\ub9c1", "party": 203000, "solo": 360000},
+    {"name": "\uc775\uc2a4\ud2b8\ub9bc \uce7c\ub85c\uc2a4", "party": 193000, "solo": 340000},
+    {"name": "\ud558\ub4dc \uce74\ub9c1", "party": 176000, "solo": 300000},
+    {"name": "\uce74\uc624\uc2a4 \uce7c\ub85c\uc2a4", "party": 151000, "solo": 250000},
+    {"name": "\ub178\ub9d0 \uce74\ub9c1", "party": 161000, "solo": 220000},
+    {"name": "\ud558\ub4dc \uc138\ub80c", "party": 105000, "solo": 170000},
+    {"name": "\uac80\uc740 \ub9c8\ubc95\uc0ac", "party": 84000, "solo": 145000},
+    {"name": "\ud558\ub4dc \uc9c4\ud790\ub77c", "party": 68000, "solo": 116000},
+    {"name": "\ud558\ub4dc \ub4c4\ucf08", "party": 65000, "solo": 110000},
+    {"name": "\uce74\uc624\uc2a4 \ub354\uc2a4\ud06c", "party": 63000, "solo": 105000},
+    {"name": "\ud558\ub4dc \uc70c", "party": 54000, "solo": 93000},
+    {"name": "\ud558\ub4dc \ub8e8\uc2dc\ub4dc", "party": 52000, "solo": 90000},
+    {"name": "\ud558\ub4dc \ub370\ubbf8\uc548", "party": 39000, "solo": 70000},
+    {"name": "\ud558\ub4dc \uc2a4\uc6b0", "party": 38000, "solo": 68000},
+]
+BOSS_RULE_BASE_MINUTES = 30
+BOSS_RULE_TARGET_MINUTES = 20
+BOSS_RULE_DEFAULT_HP_RATIO = BOSS_RULE_TARGET_MINUTES / BOSS_RULE_BASE_MINUTES
+
+
+def number(value: Any, default: float = 0.0) -> float:
+    if value in (None, ""):
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).replace(",", "").replace("%", "").strip()
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return default
+    try:
+        result = float(match.group(0))
+    except ValueError:
+        return default
+    if math.isnan(result) or math.isinf(result):
+        return default
+    return result
+
+
+def int_number(value: Any, default: int = 0) -> int:
+    return int(round(number(value, default)))
+
+
+def empty_profile() -> dict[str, dict[str, float]]:
+    return {
+        "flat": {
+            "STR": 0.0,
+            "DEX": 0.0,
+            "INT": 0.0,
+            "LUK": 0.0,
+            K_ATTACK: 0.0,
+            K_MAGIC: 0.0,
+        },
+        "percent": {
+            "STR": 0.0,
+            "DEX": 0.0,
+            "INT": 0.0,
+            "LUK": 0.0,
+            K_ATTACK: 0.0,
+            K_MAGIC: 0.0,
+        },
+        "combat": {
+            K_DAMAGE: 0.0,
+            K_BOSS: 0.0,
+            K_FINAL: 0.0,
+            K_IED: 0.0,
+            K_CRIT_RATE: 0.0,
+            K_CRIT_DAMAGE: 0.0,
+            K_ELEMENTAL: 0.0,
+        },
+    }
+
+
+def add_to_profile(profile: dict[str, dict[str, float]], group: str, key: str, value: float) -> None:
+    if key in profile[group]:
+        profile[group][key] += value
+
+
+def merge_profiles(*profiles: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+    result = empty_profile()
+    for profile in profiles:
+        for group, values in profile.items():
+            for key, value in values.items():
+                add_to_profile(result, group, key, value)
+    return result
+
+
+def subtract_profiles(
+    candidate: dict[str, dict[str, float]],
+    active: dict[str, dict[str, float]],
+) -> dict[str, dict[str, float]]:
+    result = empty_profile()
+    for group, values in result.items():
+        for key in values:
+            values[key] = candidate[group].get(key, 0.0) - active[group].get(key, 0.0)
+    return result
+
+
+def stat_map(stat_response: dict[str, Any]) -> dict[str, float]:
+    result: dict[str, float] = {}
+    for row in stat_response.get("final_stat") or []:
+        name = row.get("stat_name")
+        if name:
+            result[str(name)] = number(row.get("stat_value"))
+    return result
+
+
+def value_from(mapping: dict[str, Any], key: str, default: float = 0.0) -> float:
+    for alias in STAT_NAME_ALIASES.get(key, (key,)):
+        if alias in mapping:
+            return number(mapping.get(alias), default)
+    return default
+
+
+def option_number(options: dict[str, Any], key: str) -> float:
+    for alias in OPTION_ALIASES.get(key, (key,)):
+        if alias in options:
+            return number(options.get(alias))
+    return 0.0
+
+
+def parse_option_line(profile: dict[str, dict[str, float]], line: str | None) -> None:
+    if not line:
+        return
+    value = number(line)
+    if value == 0:
+        return
+
+    is_percent = "%" in line
+    if "\uc62c\uc2a4\ud0ef" in line or "\uc804\uccb4 \uc2a4\ud0ef" in line:
+        for stat in STAT_KEYS:
+            add_to_profile(profile, "percent" if is_percent else "flat", stat, value)
+        return
+
+    stat_words = {
+        "STR": ("STR", "\ud798"),
+        "DEX": ("DEX", "\ubbfc\ucca9\uc131"),
+        "INT": ("INT", "\uc9c0\ub825"),
+        "LUK": ("LUK", "\uc6b4"),
+    }
+    for key, words in stat_words.items():
+        if any(word in line for word in words):
+            add_to_profile(profile, "percent" if is_percent else "flat", key, value)
+            return
+
+    if "\uacf5\uaca9\ub825\uacfc \ub9c8\ub825" in line or "\uacf5\uaca9\ub825/\ub9c8\ub825" in line:
+        group = "percent" if is_percent else "flat"
+        add_to_profile(profile, group, K_ATTACK, value)
+        add_to_profile(profile, group, K_MAGIC, value)
+    elif K_ATTACK in line:
+        add_to_profile(profile, "percent" if is_percent else "flat", K_ATTACK, value)
+    elif K_MAGIC in line:
+        add_to_profile(profile, "percent" if is_percent else "flat", K_MAGIC, value)
+    elif "\ubcf4\uc2a4 \ubaac\uc2a4\ud130" in line:
+        add_to_profile(profile, "combat", K_BOSS, value)
+    elif K_CRIT_DAMAGE in line:
+        add_to_profile(profile, "combat", K_CRIT_DAMAGE, value)
+    elif K_CRIT_RATE in line:
+        add_to_profile(profile, "combat", K_CRIT_RATE, value)
+    elif K_IED in line:
+        add_to_profile(profile, "combat", K_IED, value)
+    elif K_FINAL in line:
+        add_to_profile(profile, "combat", K_FINAL, value)
+    elif K_DAMAGE in line and "\uc77c\ubc18 \ubaac\uc2a4\ud130" not in line:
+        add_to_profile(profile, "combat", K_DAMAGE, value)
+
+
+def equipment_profile(items: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
+    profile = empty_profile()
+    for item in items:
+        total = item.get("item_total_option") or {}
+        for stat in STAT_KEYS:
+            add_to_profile(profile, "flat", stat, option_number(total, stat))
+        add_to_profile(profile, "percent", "STR", option_number(total, "\uc62c\uc2a4\ud0ef"))
+        add_to_profile(profile, "percent", "DEX", option_number(total, "\uc62c\uc2a4\ud0ef"))
+        add_to_profile(profile, "percent", "INT", option_number(total, "\uc62c\uc2a4\ud0ef"))
+        add_to_profile(profile, "percent", "LUK", option_number(total, "\uc62c\uc2a4\ud0ef"))
+        add_to_profile(profile, "flat", K_ATTACK, option_number(total, K_ATTACK))
+        add_to_profile(profile, "flat", K_MAGIC, option_number(total, K_MAGIC))
+        add_to_profile(profile, "combat", K_BOSS, option_number(total, K_BOSS))
+        add_to_profile(profile, "combat", K_DAMAGE, option_number(total, K_DAMAGE))
+        add_to_profile(profile, "combat", K_IED, option_number(total, "ignore_monster_armor"))
+
+        for key in (
+            "potential_option_1",
+            "potential_option_2",
+            "potential_option_3",
+            "additional_potential_option_1",
+            "additional_potential_option_2",
+            "additional_potential_option_3",
+        ):
+            parse_option_line(profile, item.get(key))
+    return profile
+
+
+def ability_profile(ability_preset: dict[str, Any]) -> dict[str, dict[str, float]]:
+    profile = empty_profile()
+    for row in ability_preset.get("ability_info") or []:
+        parse_option_line(profile, row.get("ability_value"))
+    return profile
+
+
+def hyper_profile(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
+    profile = empty_profile()
+    for row in rows:
+        parse_option_line(profile, row.get("stat_increase"))
+    return profile
+
+
+def apply_profile_delta(stats: dict[str, float], delta: dict[str, dict[str, float]]) -> dict[str, float]:
+    adjusted = dict(stats)
+    for stat in STAT_KEYS:
+        adjusted[stat] = max(
+            0.0,
+            value_from(adjusted, stat)
+            + delta["flat"].get(stat, 0.0)
+            + value_from(adjusted, stat)
+            * delta["percent"].get(stat, 0.0)
+            * STAT_PERCENT_EFFECT_RATIO
+            / 100,
+        )
+    for attack_key in (K_ATTACK, K_MAGIC):
+        adjusted[attack_key] = max(
+            0.0,
+            value_from(adjusted, attack_key)
+            + delta["flat"].get(attack_key, 0.0)
+            + value_from(adjusted, attack_key)
+            * delta["percent"].get(attack_key, 0.0)
+            * ATTACK_PERCENT_EFFECT_RATIO
+            / 100,
+        )
+    for key, value in delta["combat"].items():
+        adjusted[key] = value_from(adjusted, key) + value
+    adjusted[K_IED] = max(0.0, min(100.0, value_from(adjusted, K_IED)))
+    adjusted[K_CRIT_RATE] = max(0.0, value_from(adjusted, K_CRIT_RATE))
+    return adjusted
+
+
+def stat_formula(base: float, percent: float = 0.0, static: float = 0.0) -> float:
+    return base * (1 + percent / 100) + static
+
+
+def stat_coefficient(stats: dict[str, float], key: str) -> dict[str, float]:
+    base = value_from(stats, f"{key}_base", value_from(stats, key))
+    percent = value_from(stats, f"{key}_percent", value_from(stats, f"{key}_multiplier"))
+    static = value_from(stats, f"{key}_static")
+    return {"base": base, "percent": percent, "static": static, "value": stat_formula(base, percent, static)}
+
+
+def attack_coefficient(stats: dict[str, float], key: str) -> dict[str, float]:
+    base = value_from(stats, key)
+    percent = value_from(stats, f"{key}_percent", value_from(stats, f"{key}_multiplier"))
+    return {"base": base, "percent": percent, "value": base * (1 + percent / 100)}
+
+
+def job_rule(character_class: str | None) -> dict[str, Any] | None:
+    text = str(character_class or "")
+    best_rule = None
+    best_length = 0
+    for rule in JOB_RULES:
+        for keyword in rule["keywords"]:
+            if keyword in text and len(keyword) > best_length:
+                best_rule = rule
+                best_length = len(keyword)
+    return best_rule
+
+
+def job_detail_rule(character_class: str | None) -> dict[str, Any] | None:
+    text = str(character_class or "")
+    best_rule = None
+    best_length = 0
+    for rule in JOB_DETAIL_RULES:
+        for keyword in rule["keywords"]:
+            if keyword in text and len(keyword) > best_length:
+                best_rule = rule
+                best_length = len(keyword)
+    return best_rule
+
+
+def job_converted_multiplier(character_class: str | None) -> float:
+    text = str(character_class or "")
+    best = 1.0
+    best_length = 0
+    for row in JOB_CONVERTED_MULTIPLIERS:
+        for keyword in row["keywords"]:
+            if keyword in text and len(keyword) > best_length:
+                best = float(row["multiplier"])
+                best_length = len(keyword)
+    return best
+
+
+def combat_converted_job_factor(character_class: str | None) -> tuple[float, bool]:
+    text = str(character_class or "")
+    best = 1.0
+    best_length = 0
+    matched = False
+    for row in COMBAT_CONVERTED_JOB_FACTORS:
+        for keyword in row["keywords"]:
+            if keyword in text and len(keyword) > best_length:
+                best = float(row["factor"])
+                best_length = len(keyword)
+                matched = True
+    return best, matched
+
+
+def special_combat_converted_model(character_class: str | None) -> dict[str, Any] | None:
+    text = str(character_class or "")
+    best: dict[str, Any] | None = None
+    best_length = 0
+    for row in SPECIAL_COMBAT_CONVERTED_MODELS:
+        for keyword in row["keywords"]:
+            if keyword in text and len(keyword) > best_length:
+                best = row
+                best_length = len(keyword)
+    return best
+
+
+def special_detail_hybrid_model(character_class: str | None) -> dict[str, Any] | None:
+    text = str(character_class or "")
+    best: dict[str, Any] | None = None
+    best_length = 0
+    for row in SPECIAL_DETAIL_HYBRID_MODELS:
+        for keyword in row["keywords"]:
+            if keyword in text and len(keyword) > best_length:
+                best = row
+                best_length = len(keyword)
+    return best
+
+
+def uses_legacy_converted_model(character_class: str | None) -> bool:
+    text = str(character_class or "")
+    return any(keyword in text for keyword in COMBAT_CONVERTED_LEGACY_JOBS)
+
+
+def combat_power_converted_score(stats: dict[str, float], character_class: str | None) -> dict[str, Any]:
+    combat_power = exact_combat_power(stats)
+    if combat_power <= 0:
+        return {
+            "applied": False,
+            "combatPower": combat_power,
+            "jobFactor": 1.0,
+            "matched": False,
+            "model": "legacy_damage_factor",
+            "converted": 0.0,
+        }
+
+    special_model = special_combat_converted_model(character_class)
+    if special_model:
+        a0, a1 = special_model["coefficients"]
+        converted = math.exp(a0 + a1 * math.log(combat_power))
+        return {
+            "applied": True,
+            "combatPower": combat_power,
+            "jobFactor": 1.0,
+            "matched": True,
+            "model": special_model["model"],
+            "converted": converted,
+        }
+
+    factor, matched = combat_converted_job_factor(character_class)
+    if uses_legacy_converted_model(character_class):
+        return {
+            "applied": False,
+            "combatPower": combat_power,
+            "jobFactor": factor,
+            "matched": matched,
+            "model": "legacy_damage_factor",
+            "converted": 0.0,
+        }
+
+    x = math.log(combat_power)
+    a0, a1, a2, a3 = COMBAT_CONVERTED_LOG_COEFFICIENTS
+    converted = math.exp(a0 + a1 * x + a2 * x * x + a3 * x * x * x) * factor
+    return {
+        "applied": True,
+        "combatPower": combat_power,
+        "jobFactor": factor,
+        "matched": matched,
+        "model": "combat_power_curve" if matched else "combat_power_curve_generic",
+        "converted": converted,
+    }
+
+
+def special_job_note(character_class: str | None) -> str:
+    text = str(character_class or "")
+    if "제논" in text:
+        return "제논은 STR/DEX/LUK 복합 주스탯이라 현재 단일 주스탯 환산과 차이가 날 수 있습니다."
+    if "데몬어벤져" in text:
+        return "데몬어벤져는 HP 기반 직업이라 현재 일반 주스탯 환산과 차이가 날 수 있습니다."
+    return ""
+
+
+def choose_main_stat(stats: dict[str, float], character_class: str | None = None) -> str:
+    detail_rule = job_detail_rule(character_class)
+    if detail_rule:
+        return str(detail_rule["mainStat"])
+    rule = job_rule(character_class)
+    if rule:
+        return str(rule["mainStat"])
+    return max(STAT_KEYS, key=lambda key: stat_coefficient(stats, key)["value"])
+
+
+def choose_sub_stat(stats: dict[str, float], main_stat: str, character_class: str | None = None) -> str:
+    detail_rule = job_detail_rule(character_class)
+    if detail_rule:
+        return " + ".join(str(stat) for stat in detail_rule.get("subStats", ()) if stat != main_stat) or "-"
+    return max([key for key in STAT_KEYS if key != main_stat], key=lambda key: stat_coefficient(stats, key)["value"])
+
+
+def choose_attack_type(stats: dict[str, float], character_class: str | None = None) -> str:
+    detail_rule = job_detail_rule(character_class)
+    if detail_rule:
+        return str(detail_rule["attackType"])
+    rule = job_rule(character_class)
+    if rule:
+        return str(rule["attackType"])
+    attack = attack_coefficient(stats, K_ATTACK)["value"]
+    magic = attack_coefficient(stats, K_MAGIC)["value"]
+    return K_MAGIC if magic > attack else K_ATTACK
+
+
+def main_weapon(item_response: dict[str, Any]) -> dict[str, Any]:
+    for item in item_response.get("item_equipment") or []:
+        if item.get("item_equipment_slot") == "\ubb34\uae30":
+            return item
+    return {}
+
+
+def weapon_part(item_response: dict[str, Any]) -> str:
+    weapon = main_weapon(item_response)
+    return str(weapon.get("item_equipment_part") or weapon.get("item_name") or "")
+
+
+def weapon_constant(item_response: dict[str, Any], character_class: str | None = None) -> float:
+    part = weapon_part(item_response)
+    for name, constant in WEAPON_CONSTANT_BY_PART.items():
+        if name in part:
+            return constant
+    detail_rule = job_detail_rule(character_class)
+    if detail_rule:
+        return float(detail_rule.get("weaponConstant", DEFAULT_WEAPON_CONSTANT))
+    return DEFAULT_WEAPON_CONSTANT
+
+
+def mastery(item_response: dict[str, Any], character_class: str | None = None) -> float:
+    part = weapon_part(item_response)
+    for name, value in MASTERY_BY_PART.items():
+        if name in part:
+            return value
+    detail_rule = job_detail_rule(character_class)
+    if detail_rule:
+        return float(detail_rule.get("mastery", DEFAULT_MASTERY))
+    return DEFAULT_MASTERY
+
+
+def base_stat_factor(
+    stats: dict[str, float],
+    character_class: str | None,
+    main_key: str,
+    sub_key: str,
+) -> dict[str, Any]:
+    detail_rule = job_detail_rule(character_class)
+    mode = str((detail_rule or {}).get("statMode") or "single")
+    coefficients = {key: stat_coefficient(stats, key) for key in STAT_KEYS}
+
+    if mode == "xenon":
+        weighted = sum(coefficients[key]["value"] for key in ("STR", "DEX", "LUK")) * 3.5
+        return {
+            "mode": mode,
+            "main": coefficients[main_key],
+            "sub": {key: coefficients[key] for key in ("STR", "DEX")},
+            "weights": {"STR": 3.5, "DEX": 3.5, "LUK": 3.5},
+            "baseStatFactor": weighted,
+        }
+
+    if mode == "demon_avenger":
+        hp = value_from(stats, K_HP)
+        weighted = hp / 3.5 + coefficients["STR"]["value"] * 4 + coefficients["DEX"]["value"]
+        return {
+            "mode": mode,
+            "main": coefficients["STR"],
+            "sub": {"DEX": coefficients["DEX"], K_HP: {"base": hp, "percent": 0.0, "static": 0.0, "value": hp}},
+            "weights": {K_HP: 1 / 3.5, "STR": 4.0, "DEX": 1.0},
+            "baseStatFactor": weighted,
+        }
+
+    sub_stats = tuple((detail_rule or {}).get("subStats") or (sub_key,))
+    weighted = coefficients[main_key]["value"] * 4 + sum(
+        coefficients[key]["value"] for key in sub_stats if key in coefficients and key != main_key
+    )
+    return {
+        "mode": mode,
+        "main": coefficients[main_key],
+        "sub": {key: coefficients[key] for key in sub_stats if key in coefficients and key != main_key},
+        "weights": {main_key: 4.0, **{key: 1.0 for key in sub_stats if key in coefficients and key != main_key}},
+        "baseStatFactor": weighted,
+    }
+
+
+def detailed_scale_multiplier(character_class: str | None, weapon_const: float) -> float:
+    detail_rule = job_detail_rule(character_class)
+    if detail_rule and "detailScale" in detail_rule:
+        return float(detail_rule["detailScale"])
+
+    scale = job_converted_multiplier(character_class)
+    calibrated_weapon_const = float((detail_rule or {}).get("calibratedWeaponConstant") or weapon_const or DEFAULT_WEAPON_CONSTANT)
+    if weapon_const > 0 and calibrated_weapon_const > 0:
+        scale *= math.sqrt(calibrated_weapon_const / weapon_const)
+    return scale
+
+
+def armor_factor(ignored_defence: float, armor: int = ARMOR) -> float:
+    return max(0.0, 1 - 0.0001 * armor * (100 - ignored_defence))
+
+
+def critical_factor(critical_damage: float, critical_rate: float) -> float:
+    return 1 + (35 + critical_damage) * min(100, critical_rate) * 0.0001
+
+
+def elemental_factor(elemental_resistance: float | None) -> float:
+    if elemental_resistance is None:
+        return 1.0
+    return 0.5 * (1 + min(100, elemental_resistance) * 0.01)
+
+
+def exact_combat_power(stats: dict[str, float]) -> int:
+    return int_number(value_from(stats, K_COMBAT))
+
+
+def converted_score(
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    armor: int = ARMOR,
+    character_class: str | None = None,
+    use_combat_model: bool = False,
+) -> dict[str, Any]:
+    main_key = choose_main_stat(stats, character_class)
+    sub_key = choose_sub_stat(stats, main_key, character_class)
+    attack_key = choose_attack_type(stats, character_class)
+
+    main = stat_coefficient(stats, main_key)
+    sub = stat_coefficient(stats, sub_key) if sub_key in STAT_KEYS else {"base": 0.0, "percent": 0.0, "static": 0.0, "value": 0.0}
+    attack = attack_coefficient(stats, attack_key)
+    damage = value_from(stats, K_DAMAGE)
+    boss_damage = value_from(stats, K_BOSS)
+    final_damage = value_from(stats, K_FINAL)
+    ignored = value_from(stats, K_IED)
+    crit_rate = value_from(stats, K_CRIT_RATE)
+    crit_damage = value_from(stats, K_CRIT_DAMAGE)
+    elemental = value_from(stats, K_ELEMENTAL, default=-1)
+    elemental = None if elemental < 0 else elemental
+
+    base_stat = base_stat_factor(stats, character_class, main_key, sub_key)
+    base_stat_factor_value = base_stat["baseStatFactor"]
+    boss_damage_total = boss_damage + damage * REGULAR_DAMAGE_BOSS_WEIGHT
+    general_damage_factor = (1 + boss_damage_total / 100) * (1 + final_damage / 100)
+    defence_factor = armor_factor(ignored, armor)
+    crit_factor = critical_factor(crit_damage, crit_rate)
+    elem_factor = elemental_factor(elemental)
+    weapon_const = weapon_constant(item_response, character_class)
+    mastery_value = mastery(item_response, character_class)
+    mastery_average = (1 + mastery_value) / 2
+    damage_factor = (
+        general_damage_factor
+        * defence_factor
+        * crit_factor
+        * base_stat_factor_value
+        * attack["value"]
+        * elem_factor
+        * weapon_const
+        * 0.01
+        * mastery_average
+    )
+    raw_converted_stat = math.sqrt(max(0.0, damage_factor)) * CONVERTED_STAT_SCALE
+    job_multiplier = detailed_scale_multiplier(character_class, weapon_const)
+    detailed_converted_stat = raw_converted_stat * job_multiplier
+    combat_converted = combat_power_converted_score(stats, character_class)
+    special_hybrid_model = special_detail_hybrid_model(character_class)
+    special_hybrid_converted = 0.0
+    special_hybrid_applied = False
+    if special_hybrid_model and raw_converted_stat > 0 and exact_combat_power(stats) > 0:
+        a0, a1, a2 = special_hybrid_model["coefficients"]
+        special_hybrid_converted = math.exp(a0 + a1 * math.log(raw_converted_stat) + a2 * math.log(exact_combat_power(stats)))
+        special_hybrid_applied = True
+
+    if use_combat_model and combat_converted["applied"]:
+        converted_stat = combat_converted["converted"]
+        converted_model = combat_converted.get("model", "combat_power_curve")
+    elif special_hybrid_applied:
+        converted_stat = special_hybrid_converted
+        converted_model = str(special_hybrid_model["model"])
+    else:
+        converted_stat = detailed_converted_stat
+        converted_model = "job_detailed_damage_factor"
+
+    return {
+        "armor": armor,
+        "mainStat": main_key,
+        "subStat": sub_key,
+        "attackType": attack_key,
+        "jobRuleApplied": bool(job_detail_rule(character_class) or job_rule(character_class)),
+        "jobDetailRuleApplied": bool(job_detail_rule(character_class)),
+        "jobNote": special_job_note(character_class),
+        "jobConvertedMultiplier": job_multiplier,
+        "convertedModel": converted_model,
+        "combatPowerConverted": combat_converted["converted"],
+        "combatPowerJobFactor": combat_converted["jobFactor"],
+        "specialHybridConverted": special_hybrid_converted,
+        "legacyConverted": detailed_converted_stat,
+        "detailedConverted": detailed_converted_stat,
+        "rawConverted": raw_converted_stat,
+        "baseStatFormula": {"main": main, "sub": sub, **base_stat},
+        "attackFormula": attack,
+        "damageFormula": {
+            "damage": damage,
+            "bossDamage": boss_damage,
+            "bossDamageTotal": boss_damage_total,
+            "regularDamageBossWeight": REGULAR_DAMAGE_BOSS_WEIGHT,
+            "finalDamage": final_damage,
+            "ignoredDefence": ignored,
+            "criticalRate": crit_rate,
+            "criticalDamage": crit_damage,
+            "elementalResistance": elemental,
+            "weaponConstant": weapon_const,
+            "mastery": mastery_value,
+            "masteryAverage": mastery_average,
+            "generalDamageFactor": general_damage_factor,
+            "armorFactor": defence_factor,
+            "criticalFactor": crit_factor,
+            "elementalFactor": elem_factor,
+        },
+        "baseStatFactor": base_stat_factor_value,
+        "attack": attack["value"],
+        "damageFactor": damage_factor,
+        "armorFactor": defence_factor,
+        "converted": converted_stat,
+    }
+
+
+def available_item_presets(item_response: dict[str, Any]) -> dict[int, list[dict[str, Any]]]:
+    result = {}
+    for idx in (1, 2, 3):
+        items = item_response.get(f"item_equipment_preset_{idx}") or []
+        if items:
+            result[idx] = items
+    active = int_number(item_response.get("preset_no"), 0)
+    if active and active not in result and item_response.get("item_equipment"):
+        result[active] = item_response.get("item_equipment") or []
+    return result
+
+
+def available_ability_presets(ability_response: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    result = {}
+    for idx in (1, 2, 3):
+        preset = ability_response.get(f"ability_preset_{idx}") or {}
+        if preset.get("ability_info"):
+            result[idx] = preset
+    active = int_number(ability_response.get("preset_no"), 0)
+    if active and active not in result:
+        result[active] = {"ability_info": ability_response.get("ability_info") or []}
+    return result
+
+
+def available_hyper_presets(hyper_response: dict[str, Any]) -> dict[int, list[dict[str, Any]]]:
+    result = {}
+    for idx in (1, 2, 3):
+        rows = hyper_response.get(f"hyper_stat_preset_{idx}") or []
+        if rows:
+            result[idx] = rows
+    return result
+
+
+def optimize_presets(
+    raw: dict[str, Any],
+    stats: dict[str, float],
+    character_class: str | None = None,
+) -> dict[str, Any]:
+    item_response = raw.get("itemEquipment") or {}
+    ability_response = raw.get("ability") or {}
+    hyper_response = raw.get("hyperStat") or {}
+    item_presets = available_item_presets(item_response)
+    ability_presets = available_ability_presets(ability_response)
+    hyper_presets = available_hyper_presets(hyper_response)
+
+    active_item = int_number(item_response.get("preset_no"), 0) or next(iter(item_presets), 1)
+    active_ability = int_number(ability_response.get("preset_no"), 0) or next(iter(ability_presets), 1)
+    active_hyper = int_number(hyper_response.get("use_preset_no"), 0) or next(iter(hyper_presets), 1)
+
+    active_profile = merge_profiles(
+        equipment_profile(item_presets.get(active_item, item_response.get("item_equipment") or [])),
+        ability_profile(ability_presets.get(active_ability, {"ability_info": ability_response.get("ability_info") or []})),
+        hyper_profile(hyper_presets.get(active_hyper, [])),
+    )
+
+    candidates = []
+    for item_no, items in item_presets.items():
+        for ability_no, ability in ability_presets.items() or [(active_ability, {})]:
+            for hyper_no, hyper in hyper_presets.items() or [(active_hyper, [])]:
+                candidate_profile = merge_profiles(equipment_profile(items), ability_profile(ability), hyper_profile(hyper))
+                adjusted_stats = apply_profile_delta(stats, subtract_profiles(candidate_profile, active_profile))
+                item_payload = {"item_equipment": items}
+                converted = converted_score(
+                    adjusted_stats,
+                    item_payload,
+                    character_class=character_class,
+                    use_combat_model=False,
+                )
+                candidates.append(
+                    {
+                        "itemPreset": item_no,
+                        "abilityPreset": ability_no,
+                        "hyperPreset": hyper_no,
+                        "converted": round(converted["converted"]),
+                        "damageFactor": round(converted["damageFactor"]),
+                        "mainStat": converted["mainStat"],
+                        "attackType": converted["attackType"],
+                        "isCurrent": item_no == active_item and ability_no == active_ability and hyper_no == active_hyper,
+                    }
+                )
+
+    candidates.sort(key=lambda row: row["converted"], reverse=True)
+    current = next((row for row in candidates if row["isCurrent"]), candidates[0] if candidates else None)
+    best = candidates[0] if candidates else None
+    if current:
+        for row in candidates:
+            row["delta"] = row["converted"] - current["converted"]
+
+    return {
+        "active": {"itemPreset": active_item, "abilityPreset": active_ability, "hyperPreset": active_hyper},
+        "best": best,
+        "current": current,
+        "top": candidates[:9],
+        "all": candidates,
+        "candidateCount": len(candidates),
+    }
+
+
+def boss_time_adjustment(hp_ratio: float | None = None) -> float:
+    ratio = BOSS_RULE_DEFAULT_HP_RATIO if hp_ratio is None else hp_ratio
+    return math.sqrt(max(0.0, ratio) * BOSS_RULE_BASE_MINUTES / BOSS_RULE_TARGET_MINUTES)
+
+
+def boss_status(
+    converted: float,
+    party_min: float,
+    solo_min: float,
+    hp_ratio: float | None = None,
+) -> dict[str, Any]:
+    adjustment = boss_time_adjustment(hp_ratio)
+    base_party_min = party_min
+    base_solo_min = solo_min
+    party_min *= adjustment
+    solo_min *= adjustment
+    party_ratio = converted / party_min * 100 if party_min else 0
+    solo_ratio = converted / solo_min * 100 if solo_min else 0
+    party_gap = converted - party_min
+    solo_gap = converted - solo_min
+    if party_ratio < 100:
+        label = "\ubd88\uac00\ub2a5"
+        tone = "no"
+        target_label = "\ud30c\ud2f0\ucef7"
+        target_gap = party_gap
+    elif solo_ratio < 80:
+        label = "\ud30c\ud2f0\uac00\ub2a5"
+        tone = "party"
+        target_label = "\uc194\ud50c\ucef7"
+        target_gap = solo_gap
+    elif solo_ratio < 100:
+        label = "\uc194\ud50c \ucd5c\uc18c\ucef7"
+        tone = "near"
+        target_label = "\uc194\ud50c\ucef7"
+        target_gap = solo_gap
+    elif solo_ratio < 160:
+        label = "\uc194\ud50c \uac00\ub2a5"
+        tone = "solo"
+        target_label = "\uc194\ud50c\ucef7"
+        target_gap = solo_gap
+    else:
+        label = "\uc194\ud50c \uc5ec\uc720"
+        tone = "easy"
+        target_label = "\uc194\ud50c\ucef7"
+        target_gap = solo_gap
+
+    if target_gap < 0:
+        gap_label = f"{target_label}\uae4c\uc9c0 {abs(round(target_gap)):,} \ubd80\uc871"
+    else:
+        gap_label = f"{target_label}\ubcf4\ub2e4 {round(target_gap):,} \ucd08\uacfc"
+
+    return {
+        "status": label,
+        "tone": tone,
+        "currentConverted": round(converted),
+        "partyRequired": round(party_min),
+        "soloRequired": round(solo_min),
+        "basePartyRequired": round(base_party_min),
+        "baseSoloRequired": round(base_solo_min),
+        "baseMinutes": BOSS_RULE_BASE_MINUTES,
+        "targetMinutes": BOSS_RULE_TARGET_MINUTES,
+        "hpRatio": round(BOSS_RULE_DEFAULT_HP_RATIO if hp_ratio is None else hp_ratio, 4),
+        "timeAdjustment": round(adjustment, 4),
+        "partyGap": round(party_gap),
+        "soloGap": round(solo_gap),
+        "partyRatio": round(party_ratio, 1),
+        "soloRatio": round(solo_ratio, 1),
+        "partyPossible": party_ratio >= 100,
+        "soloPossible": solo_ratio >= 100,
+        "gapLabel": gap_label,
+    }
+
+
+def build_boss_board(converted: float) -> list[dict[str, Any]]:
+    result = []
+    for boss in BOSS_RULES:
+        status = boss_status(converted, boss["party"], boss["solo"], boss.get("hpRatio"))
+        result.append({**boss, **status})
+    return result
+
+
+def summarize_item(item: dict[str, Any], main_stat: str, attack_type: str) -> dict[str, Any]:
+    total = item.get("item_total_option") or {}
+    base = item.get("item_base_option") or {}
+    potentials = [item.get("potential_option_1"), item.get("potential_option_2"), item.get("potential_option_3")]
+    add_potentials = [
+        item.get("additional_potential_option_1"),
+        item.get("additional_potential_option_2"),
+        item.get("additional_potential_option_3"),
+    ]
+    return {
+        "slot": item.get("item_equipment_slot") or item.get("item_equipment_part") or "-",
+        "part": item.get("item_equipment_part") or "-",
+        "name": item.get("item_name") or "-",
+        "icon": item.get("item_icon") or "",
+        "description": item.get("item_description") or "",
+        "starforce": int_number(item.get("starforce")),
+        "scrollUpgrade": int_number(item.get("scroll_upgrade")),
+        "grade": item.get("potential_option_grade") or "",
+        "additionalGrade": item.get("additional_potential_option_grade") or "",
+        "mainOption": int_number(option_number(total, main_stat)),
+        "attackOption": int_number(option_number(total, attack_type)),
+        "baseAttack": int_number(option_number(base, attack_type)),
+        "bossDamage": option_number(total, K_BOSS),
+        "damage": option_number(total, K_DAMAGE),
+        "allStat": option_number(total, "\uc62c\uc2a4\ud0ef"),
+        "potentials": [line for line in potentials if line],
+        "additionalPotentials": [line for line in add_potentials if line],
+    }
+
+
+def summarize_items(item_response: dict[str, Any], main_stat: str, attack_type: str) -> dict[str, Any]:
+    items = item_response.get("item_equipment") or []
+    summarized = [summarize_item(item, main_stat, attack_type) for item in items]
+    return {"items": summarized, "count": len(summarized), "starforceTotal": sum(item["starforce"] for item in summarized)}
+
+
+def summarize_symbols(symbol_response: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": symbol.get("symbol_name") or "-",
+            "icon": symbol.get("symbol_icon") or "",
+            "level": int_number(symbol.get("symbol_level")),
+            "growth": symbol.get("symbol_growth_count") or "",
+        }
+        for symbol in symbol_response.get("symbol") or []
+    ]
+
+
+def summarize_ability(ability_response: dict[str, Any]) -> list[dict[str, str]]:
+    return [
+        {"grade": str(row.get("ability_grade") or ""), "value": str(row.get("ability_value") or "")}
+        for row in ability_response.get("ability_info") or []
+    ]
+
+
+def summarize_hyper_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result = []
+    for row in rows:
+        name = (
+            row.get("stat_type")
+            or row.get("stat_name")
+            or row.get("hyper_stat_type")
+            or row.get("hyper_stat_name")
+            or "-"
+        )
+        result.append(
+            {
+                "name": str(name),
+                "level": int_number(row.get("stat_level") or row.get("hyper_stat_level")),
+                "point": int_number(row.get("stat_point") or row.get("hyper_stat_point")),
+                "increase": str(row.get("stat_increase") or row.get("hyper_stat_increase") or ""),
+            }
+        )
+    return result
+
+
+def build_preset_views(
+    raw: dict[str, Any],
+    main_stat: str,
+    attack_type: str,
+    preset_optimization: dict[str, Any],
+) -> dict[str, Any]:
+    item_response = raw.get("itemEquipment") or {}
+    ability_response = raw.get("ability") or {}
+    hyper_response = raw.get("hyperStat") or {}
+    active = preset_optimization.get("active") or {}
+
+    item_presets = available_item_presets(item_response)
+    ability_presets = available_ability_presets(ability_response)
+    hyper_presets = available_hyper_presets(hyper_response)
+
+    equipment = []
+    for preset_no, items in sorted(item_presets.items()):
+        summarized = summarize_items({"item_equipment": items}, main_stat, attack_type)
+        equipment.append(
+            {
+                "no": preset_no,
+                "active": preset_no == active.get("itemPreset"),
+                "items": summarized["items"],
+                "count": summarized["count"],
+                "starforceTotal": summarized["starforceTotal"],
+            }
+        )
+
+    ability = []
+    for preset_no, preset in sorted(ability_presets.items()):
+        rows = summarize_ability(preset)
+        ability.append(
+            {
+                "no": preset_no,
+                "active": preset_no == active.get("abilityPreset"),
+                "abilities": rows,
+                "count": len(rows),
+            }
+        )
+
+    hyper = []
+    for preset_no, rows in sorted(hyper_presets.items()):
+        summarized = summarize_hyper_rows(rows)
+        hyper.append(
+            {
+                "no": preset_no,
+                "active": preset_no == active.get("hyperPreset"),
+                "rows": summarized,
+                "count": len(summarized),
+            }
+        )
+
+    return {
+        "active": active,
+        "equipment": equipment,
+        "ability": ability,
+        "hyper": hyper,
+        "combinations": preset_optimization.get("all") or [],
+    }
+
+
+def pick_list(payload: dict[str, Any], *keys: str) -> list[dict[str, Any]]:
+    for key in keys:
+        rows = payload.get(key)
+        if isinstance(rows, list):
+            return [row for row in rows if isinstance(row, dict)]
+    return []
+
+
+def hexa_main_multiplier(level: int) -> int:
+    if level < 0:
+        return 0
+    if level >= len(HEXA_MAIN_LEVEL_MULTIPLIER):
+        return HEXA_MAIN_LEVEL_MULTIPLIER[-1]
+    return HEXA_MAIN_LEVEL_MULTIPLIER[level]
+
+
+def hexa_stat_basis(core_name: str, main_stat: str, attack_type: str) -> tuple[str, str, float] | None:
+    if not core_name:
+        return None
+    if "\uc8fc\ub825" in core_name:
+        return "flat", main_stat, 100.0
+    if "\uacf5\uaca9\ub825" in core_name and "\ub9c8\ub825" in core_name:
+        return "flat", attack_type, 5.0
+    if "\uacf5\uaca9\ub825" in core_name:
+        return "flat", K_ATTACK, 5.0
+    if "\ub9c8\ub825" in core_name:
+        return "flat", K_MAGIC, 5.0
+    if "\ud06c\ub9ac" in core_name:
+        return "combat", K_CRIT_DAMAGE, 0.35
+    if "\ubcf4\uc2a4" in core_name:
+        return "combat", K_BOSS, 1.0
+    if "\ubc29\uc5b4" in core_name or "\ubb34\uc2dc" in core_name:
+        return "combat", K_IED, 1.0
+    if "\ub370\ubbf8\uc9c0" in core_name:
+        return "combat", K_DAMAGE, 0.75
+    return None
+
+
+def hexa_stat_profile(
+    hexa_stat_response: dict[str, Any],
+    main_stat: str,
+    attack_type: str,
+) -> dict[str, Any]:
+    profile = empty_profile()
+    details = []
+    rows = (
+        pick_list(hexa_stat_response, "character_hexa_stat_core")
+        + pick_list(hexa_stat_response, "character_hexa_stat_core_2")
+        + pick_list(hexa_stat_response, "character_hexa_stat_core_3")
+    )
+
+    for row in rows:
+        entries = (
+            ("main", row.get("main_stat_name"), int_number(row.get("main_stat_level")), True),
+            ("sub1", row.get("sub_stat_name_1"), int_number(row.get("sub_stat_level_1")), False),
+            ("sub2", row.get("sub_stat_name_2"), int_number(row.get("sub_stat_level_2")), False),
+        )
+        for slot, name, level, is_main in entries:
+            basis = hexa_stat_basis(str(name or ""), main_stat, attack_type)
+            if not basis or level <= 0:
+                continue
+            group, key, per_level = basis
+            multiplier = hexa_main_multiplier(level) if is_main else level
+            value = per_level * multiplier
+            add_to_profile(profile, group, key, value)
+            details.append(
+                {
+                    "slot": slot,
+                    "name": name,
+                    "level": level,
+                    "target": key,
+                    "value": value,
+                }
+            )
+
+    return {"profile": profile, "details": details, "count": len(rows)}
+
+
+def remove_hexa_profile(stats: dict[str, float], profile: dict[str, dict[str, float]]) -> dict[str, float]:
+    adjusted = dict(stats)
+    for key, value in profile["flat"].items():
+        if not value:
+            continue
+        adjusted[key] = max(0.0, value_from(adjusted, key) - value)
+
+    for key, value in profile["combat"].items():
+        if not value:
+            continue
+        current = value_from(adjusted, key)
+        if key == K_IED and 0 < value < 100:
+            source = value / 100
+            adjusted[key] = max(0.0, min(100.0, (1 - (1 - current / 100) / (1 - source)) * 100))
+        else:
+            adjusted[key] = max(0.0, current - value)
+    return adjusted
+
+
+def nested_level_candidates(value: Any) -> list[int]:
+    if isinstance(value, dict):
+        result = []
+        for key, child in value.items():
+            if "level" in str(key).lower():
+                level = int_number(child)
+                if level > 0:
+                    result.append(level)
+            result.extend(nested_level_candidates(child))
+        return result
+    if isinstance(value, list):
+        result = []
+        for child in value:
+            result.extend(nested_level_candidates(child))
+        return result
+    return []
+
+
+def row_level(row: dict[str, Any]) -> int:
+    direct = (
+        row.get("hexa_core_level")
+        or row.get("skill_level")
+        or row.get("core_level")
+        or row.get("level")
+    )
+    level = int_number(direct)
+    if level > 0:
+        return level
+    candidates = nested_level_candidates(row)
+    return max(candidates, default=0)
+
+
+def hexa_skill_level_summary(raw: dict[str, Any]) -> dict[str, Any]:
+    rows = []
+    rows.extend(pick_list(raw.get("hexamatrix") or {}, "character_hexa_core_equipment"))
+    rows.extend(pick_list(raw.get("skill6") or {}, "character_skill"))
+
+    levels_by_name: dict[str, int] = {}
+    for index, row in enumerate(rows):
+        name = (
+            row.get("hexa_core_name")
+            or row.get("skill_name")
+            or row.get("core_name")
+            or f"hexa-{index}"
+        )
+        level = row_level(row)
+        if level <= 0:
+            continue
+        key = str(name)
+        levels_by_name[key] = max(levels_by_name.get(key, 0), level)
+
+    levels = list(levels_by_name.values())
+    total_level = sum(levels)
+    effect_rate = min(HEXA_SKILL_EFFECT_CAP, total_level * HEXA_SKILL_EFFECT_PER_LEVEL)
+    return {
+        "count": len(levels),
+        "totalLevel": total_level,
+        "maxLevel": max(levels, default=0),
+        "effectRate": effect_rate,
+        "levels": levels_by_name,
+    }
+
+
+def hexa_completion_ratio(total_level: int) -> float:
+    if total_level <= 0:
+        return 1.0
+    completion = min(1.0, total_level / HEXA_COMPLETION_LEVEL_CAP)
+    return HEXA_INCOMPLETE_BASE_RATIO + (1 - HEXA_INCOMPLETE_BASE_RATIO) * completion
+
+
+def hexa_converted_score(
+    raw: dict[str, Any],
+    stats: dict[str, float],
+    item_response: dict[str, Any],
+    current: dict[str, Any],
+    character_class: str | None = None,
+) -> dict[str, Any]:
+    stat_effect = hexa_stat_profile(
+        raw.get("hexamatrixStat") or {},
+        current["mainStat"],
+        current["attackType"],
+    )
+    skill_effect = hexa_skill_level_summary(raw)
+    ratio = hexa_completion_ratio(skill_effect["totalLevel"])
+    converted = current["converted"] * ratio
+    converted = min(current["converted"], converted)
+    return {
+        "converted": converted,
+        "completionRatio": ratio,
+        "gap": current["converted"] - converted,
+        "statEffect": stat_effect,
+        "skillEffect": skill_effect,
+    }
+
+
+def summarize_pets(pet_response: dict[str, Any]) -> list[dict[str, Any]]:
+    pets = []
+    for index in (1, 2, 3):
+        name = pet_response.get(f"pet_{index}_name") or pet_response.get(f"pet_{index}_nickname")
+        equipment = pet_response.get(f"pet_{index}_equipment") or {}
+        if name or equipment:
+            pets.append(
+                {
+                    "name": name or "-",
+                    "icon": pet_response.get(f"pet_{index}_icon") or "",
+                    "equipment": equipment.get("item_name") if isinstance(equipment, dict) else "",
+                }
+            )
+    return pets
+
+
+def summarize_named_rows(rows: list[dict[str, Any]], name_keys: tuple[str, ...], icon_keys: tuple[str, ...] = ()) -> list[dict[str, Any]]:
+    result = []
+    for row in rows:
+        name = next((row.get(key) for key in name_keys if row.get(key)), "")
+        icon = next((row.get(key) for key in icon_keys if row.get(key)), "")
+        level = row.get("skill_level") or row.get("v_core_level") or row.get("hexa_core_level")
+        if name or icon:
+            result.append({"name": name or "-", "icon": icon or "", "level": level})
+    return result
+
+
+def summarize_skills(raw: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for grade in ("5", "6"):
+        payload = raw.get(f"skill{grade}") or {}
+        for skill in pick_list(payload, "character_skill"):
+            rows.append(
+                {
+                    "grade": grade,
+                    "name": skill.get("skill_name") or "-",
+                    "icon": skill.get("skill_icon") or "",
+                    "level": skill.get("skill_level"),
+                }
+            )
+    return rows
+
+
+def summarize_extra(raw: dict[str, Any]) -> dict[str, Any]:
+    link_response = raw.get("linkSkill") or {}
+    vmatrix_response = raw.get("vmatrix") or {}
+    hexamatrix_response = raw.get("hexamatrix") or {}
+    hexa_stat_response = raw.get("hexamatrixStat") or {}
+    exchange_ring = raw.get("ringExchangeSkillEquipment") or {}
+    reserve_ring = raw.get("ringReserveSkillEquipment") or {}
+
+    link_rows = pick_list(link_response, "character_link_skill", "character_owned_link_skill")
+    v_rows = pick_list(vmatrix_response, "character_v_core_equipment")
+    hexa_rows = pick_list(hexamatrix_response, "character_hexa_core_equipment")
+    hexa_stat_rows = pick_list(
+        hexa_stat_response,
+        "character_hexa_stat_core",
+        "character_hexa_stat_core_2",
+        "character_hexa_stat_core_3",
+    )
+
+    rings = []
+    for label, payload in (("링 익스체인지", exchange_ring), ("예비 특수 반지", reserve_ring)):
+        name = (
+            payload.get("item_name")
+            or payload.get("ring_skill_equipment")
+            or payload.get("ring_skill_item_name")
+            or payload.get("special_ring_reserve_name")
+            or payload.get("special_ring_exchange_name")
+        )
+        if isinstance(name, dict):
+            name = name.get("item_name")
+        if name:
+            rings.append(
+                {
+                    "type": label,
+                    "name": str(name),
+                    "icon": payload.get("item_icon")
+                    or payload.get("special_ring_reserve_icon")
+                    or payload.get("special_ring_exchange_icon")
+                    or "",
+                }
+            )
+
+    skills = summarize_skills(raw)
+    return {
+        "pets": summarize_pets(raw.get("petEquipment") or {}),
+        "linkSkills": summarize_named_rows(link_rows, ("skill_name", "link_skill_name"), ("skill_icon",)),
+        "skills": skills,
+        "vCores": summarize_named_rows(v_rows, ("v_core_name",), ("v_core_icon",)),
+        "hexaCores": summarize_named_rows(hexa_rows, ("hexa_core_name",), ("hexa_core_icon",)),
+        "hexaStatCores": hexa_stat_rows,
+        "rings": rings,
+        "counts": {
+            "pets": len(summarize_pets(raw.get("petEquipment") or {})),
+            "linkSkills": len(link_rows),
+            "skills": len(skills),
+            "vCores": len(v_rows),
+            "hexaCores": len(hexa_rows),
+            "hexaStatCores": len(hexa_stat_rows),
+            "rings": len(rings),
+        },
+    }
+
+
+def radar(stats: dict[str, float], converted: dict[str, Any]) -> dict[str, float]:
+    formula = converted["damageFormula"]
+    return {
+        "stat": min(100, converted["baseStatFactor"] / 5000),
+        "attack": min(100, converted["attack"] / 120),
+        "damage": min(100, (formula["damage"] + formula["bossDamage"]) / 7),
+        "critical": min(100, (formula["criticalDamage"] + 35) / 2),
+        "ignore": min(100, formula["ignoredDefence"]),
+        "final": min(100, formula["finalDamage"]),
+    }
+
+
+def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
+    stats = stat_map(raw.get("stat") or {})
+    item_response = raw.get("itemEquipment") or {}
+    basic = raw.get("basic") or {}
+    character_class = str(basic.get("character_class") or "")
+    converted = converted_score(stats, item_response, character_class=character_class)
+    hexa_converted = hexa_converted_score(raw, stats, item_response, converted, character_class=character_class)
+    combat_power = exact_combat_power(stats)
+    main_stat = converted["mainStat"]
+    attack_type = converted["attackType"]
+    items = summarize_items(item_response, main_stat, attack_type)
+    preset_optimization = optimize_presets(raw, stats, character_class=character_class)
+    preset_views = build_preset_views(raw, main_stat, attack_type, preset_optimization)
+    boss_basis = round(hexa_converted["converted"])
+    best_converted = preset_optimization.get("best", {}).get("converted", boss_basis)
+    boss_board = build_boss_board(boss_basis)
+
+    union = raw.get("union") or {}
+    return {
+        "date": raw.get("date"),
+        "basic": basic,
+        "stats": stats,
+        "summary": {
+            "combatPower": combat_power,
+            "converted380": round(converted["converted"]),
+            "hexaConverted380": round(hexa_converted["converted"]),
+            "hexaGap380": round(hexa_converted["gap"]),
+            "hexaSkillTotalLevel": hexa_converted["skillEffect"]["totalLevel"],
+            "hexaSkillEffectPercent": round(hexa_converted["skillEffect"]["effectRate"] * 100, 2),
+            "hexaCompletionPercent": round(hexa_converted["completionRatio"] * 100, 2),
+            "hexaStatCoreCount": hexa_converted["statEffect"]["count"],
+            "bossBasisConverted380": boss_basis,
+            "bestConverted380": best_converted,
+            "armorAdjustedCombatPower": round(combat_power * converted["armorFactor"]),
+            "mainStat": main_stat,
+            "subStat": converted["subStat"],
+            "attackType": attack_type,
+            "unionLevel": union.get("union_level"),
+            "unionGrade": union.get("union_grade"),
+            "equipmentCount": items["count"],
+            "starforceTotal": items["starforceTotal"],
+            "jobRuleApplied": converted["jobRuleApplied"],
+            "jobConvertedMultiplier": converted["jobConvertedMultiplier"],
+            "combatPowerJobFactor": converted["combatPowerJobFactor"],
+            "convertedModel": converted["convertedModel"],
+            "legacyConverted380": round(converted["legacyConverted"]),
+            "jobNote": converted["jobNote"],
+        },
+        "convertedDetail": converted,
+        "hexaConvertedDetail": hexa_converted,
+        "presetOptimization": preset_optimization,
+        "presetViews": preset_views,
+        "bossBoard": boss_board,
+        "radar": radar(stats, converted),
+        "equipment": items["items"],
+        "symbols": summarize_symbols(raw.get("symbol") or {}),
+        "ability": summarize_ability(raw.get("ability") or {}),
+        "extra": summarize_extra(raw),
+        "raw": raw,
+    }

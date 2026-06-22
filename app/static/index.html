@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maple Live Scout</title>
+    <link rel="stylesheet" href="/styles.css?v=20260622-boss-time-hp" />
+  </head>
+  <body>
+    <main class="shell">
+      <form id="search-form" class="searchbar">
+        <div>
+          <label for="character-name">닉네임</label>
+          <input id="character-name" name="characterName" autocomplete="off" placeholder="캐릭터 닉네임" />
+        </div>
+        <div>
+          <label for="date">조회일</label>
+          <input id="date" name="date" type="date" />
+        </div>
+        <button id="search-button" type="submit">조회</button>
+        <span id="status" class="status">대기 중</span>
+      </form>
+
+      <section id="empty-state" class="empty">
+        <strong>캐릭터를 검색하세요</strong>
+        <span>Nexon Open API에서 기본 정보, 전투력, 장비 목록과 프리셋을 실시간으로 가져옵니다.</span>
+      </section>
+
+      <section id="dashboard" class="dashboard" hidden>
+        <article class="profile">
+          <div class="portrait">
+            <img id="character-image" alt="" />
+          </div>
+          <div class="profile-main">
+            <div class="name-row">
+              <h1 id="character-title">-</h1>
+              <span id="world-badge" class="badge">-</span>
+            </div>
+            <div id="profile-meta" class="profile-meta"></div>
+            <div id="profile-icons" class="profile-icons"></div>
+          </div>
+        </article>
+
+        <section class="score-row">
+          <article class="score-card">
+            <span>전투력</span>
+            <strong id="combat-power">-</strong>
+          </article>
+          <article class="score-card accent">
+            <span>현재 환산 (380)</span>
+            <strong id="converted-power">-</strong>
+          </article>
+          <article class="score-card accent">
+            <span>헥사환산 (380)</span>
+            <strong id="hexa-power">-</strong>
+            <small id="hexa-detail">-</small>
+          </article>
+        </section>
+
+        <section class="preset-browser">
+          <div class="section-title">
+            <h2>프리셋 확인</h2>
+            <span id="selected-preset-summary">현재 적용 조합</span>
+          </div>
+          <div class="preset-control-grid">
+            <div class="preset-control-group">
+              <span>장비</span>
+              <div id="equipment-preset-buttons" class="preset-buttons"></div>
+            </div>
+            <div class="preset-control-group">
+              <span>어빌리티</span>
+              <div id="ability-preset-buttons" class="preset-buttons"></div>
+            </div>
+            <div class="preset-control-group">
+              <span>하이퍼스탯</span>
+              <div id="hyper-preset-buttons" class="preset-buttons"></div>
+            </div>
+            <article class="preset-result">
+              <span>선택 조합 환산</span>
+              <strong id="selected-preset-value">-</strong>
+              <small id="selected-preset-delta">-</small>
+            </article>
+          </div>
+        </section>
+
+        <nav class="view-tabs" aria-label="결과 보기">
+          <button class="view-tab active" type="button" data-tab="overview">개요</button>
+          <button class="view-tab" type="button" data-tab="boss">보스 가능 여부</button>
+        </nav>
+
+        <section class="tab-panel" data-panel="overview">
+          <section class="content-grid">
+            <aside class="sidebar">
+              <article class="panel">
+                <header>스탯</header>
+                <svg id="radar" viewBox="0 0 240 240" class="radar" aria-hidden="true"></svg>
+              </article>
+
+              <article class="panel">
+                <header>장비</header>
+                <div id="equipment-icons" class="icon-grid"></div>
+              </article>
+
+              <article class="panel">
+                <header>심볼</header>
+                <div id="symbol-icons" class="icon-grid compact"></div>
+              </article>
+
+              <article class="panel">
+                <header>어빌리티</header>
+                <div id="ability-list" class="ability-list"></div>
+              </article>
+
+              <article class="panel">
+                <header>하이퍼스탯</header>
+                <div id="hyper-list" class="hyper-list"></div>
+              </article>
+
+              <article class="panel">
+                <header>스킬·코어</header>
+                <div id="extra-list" class="extra-list"></div>
+              </article>
+            </aside>
+
+            <section class="items-section">
+              <div class="section-title">
+                <h2>아이템 리스트</h2>
+                <span id="equipment-summary">-</span>
+              </div>
+              <div id="item-list" class="item-list"></div>
+            </section>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="boss" hidden>
+          <section class="boss-section">
+            <div class="section-title">
+              <h2>보스 가능 여부</h2>
+              <span id="boss-basis">헥사환산 기준</span>
+            </div>
+            <div id="boss-list" class="boss-list"></div>
+          </section>
+        </section>
+
+        <details class="debug">
+          <summary>API 데이터</summary>
+          <pre id="raw-output">{}</pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="/app.js?v=20260622-boss-time-hp"></script>
+  </body>
+</html>

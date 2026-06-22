@@ -88,6 +88,58 @@ def assert_full_job_coverage() -> None:
         raise AssertionError("\n".join(failures))
 
 
+def assert_full_job_view_models() -> None:
+    failures: list[str] = []
+    for rule in JOB_DETAIL_RULES:
+        job = str(rule["keywords"][0])
+        main_stat = str(rule["mainStat"])
+        attack_type = str(rule["attackType"])
+        stat_mode = str(rule.get("statMode") or "single")
+        if stat_mode == "demon_avenger":
+            potential_line = "최대 HP : +3%"
+        elif stat_mode == "xenon":
+            potential_line = "STR : +3%"
+        else:
+            potential_line = f"{main_stat} : +3%"
+
+        try:
+            view = build_view_model(sample_raw(job, main_stat, attack_type, potential_line))
+        except Exception as exc:  # pragma: no cover - assertion context
+            failures.append(f"{job}: view model failed {type(exc).__name__}: {exc}")
+            continue
+
+        summary = view["summary"]
+        coverage = view["calculationCoverage"]["current"]
+        plan = view["itemUpgradePlan"]
+        if coverage["job"] != job:
+            failures.append(f"{job}: matched job drifted to {coverage['job']}")
+        if not summary["jobRuleApplied"]:
+            failures.append(f"{job}: job rule not applied")
+        if summary["mainStat"] != main_stat:
+            failures.append(f"{job}: main stat {summary['mainStat']} != {main_stat}")
+        if summary["attackType"] != attack_type:
+            failures.append(f"{job}: attack type {summary['attackType']} != {attack_type}")
+        if summary["unifiedConverted380"] <= 0:
+            failures.append(f"{job}: unified converted score missing")
+        if summary["unifiedConverted380"] != summary["bossBasisConverted380"]:
+            failures.append(f"{job}: boss basis is not unified converted score")
+        if plan["basis"] != summary["unifiedBasis"]:
+            failures.append(f"{job}: item plan basis mismatch")
+        if plan["currentConverted"] != summary["unifiedConverted380"]:
+            failures.append(f"{job}: item plan current score mismatch")
+        if not plan["top"]:
+            failures.append(f"{job}: no item repair recommendations")
+        if not plan["slotSummary"]:
+            failures.append(f"{job}: no slot repair summary")
+        if not view["bossBoard"]:
+            failures.append(f"{job}: no boss board")
+        if view["apiDataQuality"]["requiredPresent"] != 3:
+            failures.append(f"{job}: required API diagnostics incomplete")
+
+    if failures:
+        raise AssertionError("\n".join(failures))
+
+
 def assert_sample_view_model() -> None:
     raw = {
         "basic": {
@@ -283,12 +335,28 @@ def assert_preset_metric_basis() -> None:
     assert any(row["itemPreset"] == 2 and row["plan"]["slotSummary"] for row in view["presetUpgradePlans"])
 
 
+def assert_api_warning_diagnostics() -> None:
+    raw = sample_raw("레테", "INT", "마력", "INT : +3%")
+    raw["warnings"] = [{"section": "vmatrix", "message": "sample warning"}]
+    view = build_view_model(raw)
+    quality = view["apiDataQuality"]
+    assert quality["status"] == "warning"
+    assert quality["warningCount"] == 1
+    assert quality["warningSections"] == ["vmatrix"]
+    assert quality["warnings"][0]["message"] == "sample warning"
+    assert quality["missingRequiredSections"] == []
+    assert "vmatrix" in quality["missingOptionalSections"]
+    assert view["summary"]["apiWarningCount"] == 1
+
+
 def main() -> None:
     assert_job_table_integrity()
     assert_full_job_coverage()
+    assert_full_job_view_models()
     assert_sample_view_model()
     assert_special_item_targets()
     assert_preset_metric_basis()
+    assert_api_warning_diagnostics()
     print(f"OK: {len(KMS_JOB_NAMES)} KMS jobs covered")
 
 

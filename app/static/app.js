@@ -689,6 +689,7 @@ function renderItems(data) {
         item.repairRecommendation ||
         repairs.get(repairKey(item.slot, item.name)) ||
         repairs.get(repairKey(item.part, item.name));
+      const repairDecision = item.repairDecision || {};
       const lines = [
         optionLine(data.summary.mainStat, item.mainOption),
         optionLine(data.summary.attackType, item.attackOption),
@@ -706,8 +707,9 @@ function renderItems(data) {
         ? `<div class="item-repair">
             <strong>${formatNumber(repair.rank)}순위 개선</strong>
             <span>+${formatNumber(repair.expectedGain || 0)} · 개선 후 ${formatNumber(repair.metricAfter || 0)}</span>
+            ${repairDecision.rank ? `<span>결정표 ${formatNumber(repairDecision.rank)}순위 · ${escapeHtml(repairDecision.decision || "-")}</span>` : ""}
             <small>${escapeHtml(repair.recommendedType || "-")} · ${escapeHtml(repair.recommendedAction || "-")}</small>
-            ${repair.bossImpact?.label ? `<small>보스 영향 ${escapeHtml(repair.bossImpact.label)}</small>` : ""}
+            ${(repairDecision.bossImpact?.label || repair.bossImpact?.label) ? `<small>보스 영향 ${escapeHtml(repairDecision.bossImpact?.label || repair.bossImpact.label)}</small>` : ""}
           </div>`
         : "";
       return `<article class="item-card${repair ? " needs-repair" : ""}">

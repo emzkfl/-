@@ -118,11 +118,14 @@ def assert_frontend_repair_output() -> None:
             failures.append(f"renderPresetBrowser: preset repair summary marker missing {marker!r}")
     for marker in (
         "item.repairRecommendation",
+        "item.repairDecision",
         "selectedRepairLookup(data)",
         "repairKey(item.slot, item.name)",
         "repair.expectedGain",
         "repair.metricAfter",
         "repair.bossImpact",
+        "repairDecision.rank",
+        "repairDecision.bossImpact",
         "item-repair",
         "needs-repair",
     ):

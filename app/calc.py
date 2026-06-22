@@ -3796,17 +3796,47 @@ def repair_lookup_from_plan(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return lookup
 
 
+def repair_decision_lookup_from_plan(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    decisions = plan.get("repairDecisionMatrix") or []
+    lookup: dict[str, dict[str, Any]] = {}
+    for decision in decisions:
+        repair_decision = {
+            "rank": int_number(decision.get("rank")),
+            "decision": decision.get("decision") or "",
+            "slot": decision.get("slot") or "",
+            "item": decision.get("item") or "",
+            "metric": decision.get("metric") or "unifiedConverted380",
+            "metricBefore": int_number(decision.get("metricBefore")),
+            "metricAfter": int_number(decision.get("metricAfter")),
+            "expectedGain": int_number(decision.get("expectedGain")),
+            "recommendedType": decision.get("recommendedType") or "",
+            "recommendedAction": decision.get("recommendedAction") or "",
+            "weaknessLabel": decision.get("weaknessLabel") or "",
+            "bossImpact": decision.get("bossImpact") or {},
+            "sourcePath": "itemUpgradePlan.repairDecisionMatrix",
+        }
+        lookup[equipment_repair_key(decision.get("slot"), decision.get("item"))] = repair_decision
+    return lookup
+
+
 def annotate_equipment_repairs(items: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
     lookup = repair_lookup_from_plan(plan)
+    decision_lookup = repair_decision_lookup_from_plan(plan)
     annotated = []
     for item in items.get("items") or []:
         copy = dict(item)
         repair = lookup.get(equipment_repair_key(item.get("slot"), item.get("name"))) or lookup.get(
             equipment_repair_key(item.get("part"), item.get("name"))
         )
+        decision = decision_lookup.get(equipment_repair_key(item.get("slot"), item.get("name"))) or decision_lookup.get(
+            equipment_repair_key(item.get("part"), item.get("name"))
+        )
         copy["needsRepair"] = bool(repair)
+        copy["hasRepairDecision"] = bool(decision)
         if repair:
             copy["repairRecommendation"] = repair
+        if decision:
+            copy["repairDecision"] = decision
         annotated.append(copy)
 
     return {

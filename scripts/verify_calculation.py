@@ -396,6 +396,7 @@ def equipment_repair_annotation_failures(view: dict, context: str) -> list[str]:
     plan = view.get("itemUpgradePlan") or {}
     equipment = view.get("equipment") or []
     rows = plan.get("top") or []
+    decisions = plan.get("repairDecisionMatrix") or []
     equipment_by_key = {
         f"{item.get('slot') or ''}::{item.get('name') or ''}": item
         for item in equipment
@@ -441,6 +442,30 @@ def equipment_repair_annotation_failures(view: dict, context: str) -> list[str]:
             failures.append(f"{context}/{row.get('name')}: equipment repair action mismatch")
         if repair.get("sourcePath") != "itemUpgradePlan.all":
             failures.append(f"{context}/{row.get('name')}: equipment repair source path mismatch")
+
+    for decision in decisions:
+        item = equipment_by_key.get(f"{decision.get('slot') or ''}::{decision.get('item') or ''}")
+        if not item:
+            failures.append(f"{context}/{decision.get('item')}: decision target is not present in equipment list")
+            continue
+        repair_decision = item.get("repairDecision") or {}
+        if not repair_decision:
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision missing")
+            continue
+        if item.get("hasRepairDecision") is not True:
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision flag missing")
+        if repair_decision.get("rank") != decision.get("rank"):
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision rank mismatch")
+        if repair_decision.get("sourcePath") != "itemUpgradePlan.repairDecisionMatrix":
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision source path mismatch")
+        if repair_decision.get("metric") != "unifiedConverted380":
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision metric mismatch")
+        if repair_decision.get("metricAfter") != decision.get("metricAfter"):
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision metric after mismatch")
+        if repair_decision.get("expectedGain") != decision.get("expectedGain"):
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision gain mismatch")
+        if (repair_decision.get("bossImpact") or {}).get("label") != (decision.get("bossImpact") or {}).get("label"):
+            failures.append(f"{context}/{decision.get('item')}: equipment repair decision boss impact mismatch")
     return failures
 
 

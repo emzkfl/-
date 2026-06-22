@@ -1440,6 +1440,9 @@ def converted_score(
     elif special_hybrid_applied:
         converted_stat = special_hybrid_converted
         converted_model = str(special_hybrid_model["model"])
+    elif detailed_converted_stat <= 0 and combat_converted["applied"]:
+        converted_stat = combat_converted["converted"]
+        converted_model = f"{combat_converted.get('model', 'combat_power_curve')}_fallback"
     else:
         converted_stat = detailed_converted_stat
         converted_model = "job_detailed_damage_factor"
@@ -1574,6 +1577,29 @@ def optimize_presets(
                         "isCurrent": item_no == active_item and ability_no == active_ability and hyper_no == active_hyper,
                     }
                 )
+
+    if not candidates:
+        converted = converted_score(
+            stats,
+            item_response,
+            character_class=character_class,
+            use_combat_model=False,
+        )
+        unified_converted = converted["converted"] * score_multiplier
+        candidates.append(
+            {
+                "itemPreset": active_item,
+                "abilityPreset": active_ability,
+                "hyperPreset": active_hyper,
+                "converted": round(unified_converted),
+                "rawConverted": round(converted["converted"]),
+                "damageFactor": round(converted["damageFactor"]),
+                "mainStat": converted["mainStat"],
+                "attackType": converted["attackType"],
+                "isCurrent": True,
+                "fallback": True,
+            }
+        )
 
     candidates.sort(key=lambda row: row["converted"], reverse=True)
     current = next((row for row in candidates if row["isCurrent"]), candidates[0] if candidates else None)

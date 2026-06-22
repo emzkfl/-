@@ -26,12 +26,16 @@ from app.calc import (  # noqa: E402
     KMS_JOB_NAMES,
     SPECIAL_COMBAT_CONVERTED_MODELS,
     build_view_model,
+    arcane_force_damage_multiplier,
+    authentic_force_damage_multiplier,
+    boss_adjusted_metric,
     boss_time_adjustment,
     calculation_coverage,
     job_formula_manifest,
     job_detail_rule,
     primary_job_name,
     profile_from_lines,
+    symbol_force_summary,
 )
 
 
@@ -101,6 +105,10 @@ def boss_board_failures(view: dict, context: str) -> list[str]:
         failures.append(f"{context}: boss board audit hp ratio mismatch")
     if audit.get("timeAdjustment") != round(boss_time_adjustment(), 4):
         failures.append(f"{context}: boss board audit time adjustment mismatch")
+    if audit.get("ratioFormula") != "effectiveConverted / requiredConverted * 100":
+        failures.append(f"{context}: boss board audit ratio formula mismatch")
+    if "방어율보정" not in str(audit.get("effectiveMetricFormula") or ""):
+        failures.append(f"{context}: boss board effective metric formula missing")
     if audit.get("failedCount") != 0 or not audit.get("allPassed"):
         failures.append(f"{context}: boss board audit failed {audit.get('checks')}")
     if len(board) != len(BOSS_RULES):
@@ -111,18 +119,24 @@ def boss_board_failures(view: dict, context: str) -> list[str]:
         adjustment = float(row.get("timeAdjustment") or round(boss_time_adjustment(hp_ratio), 4))
         party_required = round(float(row.get("basePartyRequired") or 0.0) * adjustment)
         solo_required = round(float(row.get("baseSoloRequired") or 0.0) * adjustment)
-        party_ratio = round(metric_value / party_required * 100, 1) if party_required else 0.0
-        solo_ratio = round(metric_value / solo_required * 100, 1) if solo_required else 0.0
+        effective_value = int(round(float(row.get("effectiveConverted") or metric_value)))
+        party_ratio = round(effective_value / party_required * 100, 1) if party_required else 0.0
+        solo_ratio = round(effective_value / solo_required * 100, 1) if solo_required else 0.0
         if row.get("currentConverted") != metric_value:
             failures.append(f"{context}/{row.get('name')}: boss current converted mismatch")
+        if effective_value <= 0:
+            failures.append(f"{context}/{row.get('name')}: boss effective converted missing")
         if row.get("partyRequired") != party_required or row.get("soloRequired") != solo_required:
             failures.append(f"{context}/{row.get('name')}: boss required converted mismatch")
         if row.get("partyRatio") != party_ratio or row.get("soloRatio") != solo_ratio:
             failures.append(f"{context}/{row.get('name')}: boss ratio mismatch")
-        if row.get("partyPossible") != (metric_value >= party_required) or row.get("soloPossible") != (metric_value >= solo_required):
+        if row.get("partyPossible") != (effective_value >= party_required) or row.get("soloPossible") != (effective_value >= solo_required):
             failures.append(f"{context}/{row.get('name')}: boss possible flag mismatch")
         if row.get("baseMinutes") != BOSS_RULE_BASE_MINUTES or row.get("targetMinutes") != BOSS_RULE_TARGET_MINUTES:
             failures.append(f"{context}/{row.get('name')}: boss time basis mismatch")
+        adjustment = row.get("bossAdjustment") or {}
+        if not adjustment or "armor" not in adjustment or "force" not in adjustment:
+            failures.append(f"{context}/{row.get('name')}: boss adjustment detail missing")
     return failures
 
 
@@ -1260,6 +1274,74 @@ def assert_option_line_parsing() -> None:
     assert all(profile["percent"][stat] == 5 for stat in ("STR", "DEX", "INT", "LUK"))
 
 
+def assert_boss_force_and_defense_adjustments() -> None:
+    failures: list[str] = []
+
+    arcane_cases = [
+        (0, 100, 0.10),
+        (25, 100, 0.30),
+        (45, 100, 0.60),
+        (65, 100, 0.70),
+        (90, 100, 0.80),
+        (100, 100, 1.00),
+        (120, 100, 1.10),
+        (140, 100, 1.30),
+        (150, 100, 1.50),
+    ]
+    for current, required, expected in arcane_cases:
+        actual = arcane_force_damage_multiplier(current, required)
+        if actual != expected:
+            failures.append(f"arcane force {current}/{required}: {actual} != {expected}")
+
+    authentic_cases = [
+        (0, 100, 0.05),
+        (50, 100, 0.50),
+        (90, 100, 0.90),
+        (100, 100, 1.00),
+        (120, 100, 1.10),
+        (150, 100, 1.25),
+        (200, 100, 1.25),
+    ]
+    for current, required, expected in authentic_cases:
+        actual = authentic_force_damage_multiplier(current, required)
+        if actual != expected:
+            failures.append(f"authentic force {current}/{required}: {actual} != {expected}")
+
+    symbols = symbol_force_summary(
+        {
+            "symbol": [
+                {"symbol_name": "아케인심볼 : 소멸의 여로", "symbol_level": "20", "symbol_force": "200"},
+                {"symbol_name": "어센틱심볼 : 세르니움", "symbol_level": "11", "symbol_force": "100"},
+            ]
+        }
+    )
+    if symbols["arcane"] != 200 or symbols["authentic"] != 100:
+        failures.append(f"symbol force summary mismatch: {symbols}")
+    if symbols["bossBonus"].get("세렌") != 1.2:
+        failures.append(f"authentic symbol boss bonus missing: {symbols}")
+
+    stats = {K_IED: 97.0}
+    seren = {"name": "하드 세렌", "defense": 380, "forceType": "authentic", "forceRequired": 200, "symbolBoss": "세렌"}
+    penalty = boss_adjusted_metric(100000, stats, seren, symbols)
+    if penalty["effectiveConverted"] >= 100000:
+        failures.append(f"authentic force penalty did not reduce effective metric: {penalty}")
+    boosted_symbols = dict(symbols)
+    boosted_symbols["authentic"] = 260
+    boosted = boss_adjusted_metric(100000, stats, seren, boosted_symbols)
+    if boosted["effectiveConverted"] <= 100000:
+        failures.append(f"authentic force/symbol bonus did not increase effective metric: {boosted}")
+
+    old_boss = {"name": "하드 루시드", "defense": 300, "forceType": "arcane", "forceRequired": 360}
+    old_adjusted = boss_adjusted_metric(100000, stats, old_boss, symbols)
+    if old_adjusted["armor"]["bossDefense"] != 300:
+        failures.append(f"boss defense was not applied: {old_adjusted}")
+    if old_adjusted["effectiveConverted"] <= 0:
+        failures.append(f"boss defense/force adjustment produced invalid metric: {old_adjusted}")
+
+    if failures:
+        raise AssertionError("\n".join(failures))
+
+
 def main() -> None:
     assert_job_table_integrity()
     assert_full_job_coverage()
@@ -1270,6 +1352,7 @@ def main() -> None:
     assert_api_warning_diagnostics()
     assert_unknown_job_formula_diagnostics()
     assert_option_line_parsing()
+    assert_boss_force_and_defense_adjustments()
     print(f"OK: {len(KMS_JOB_NAMES)} KMS jobs covered")
 
 

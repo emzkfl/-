@@ -89,6 +89,32 @@ def assert_server_http_contract() -> None:
         if health_status != 200 or health != {"ok": True, "defaultDate": "2026-06-21"}:
             raise AssertionError(f"health response mismatch: {health_status} {health}")
 
+        formula_status, formulas = request_json(base_url, "/api/formulas")
+        if formula_status != 200:
+            raise AssertionError(f"formula response status mismatch: {formula_status} {formulas}")
+        if formulas.get("metricId") != "unifiedConverted380":
+            raise AssertionError(f"formula response metric id mismatch: {formulas}")
+        if formulas.get("jobCount", 0) < 48:
+            raise AssertionError(f"formula response job count too small: {formulas.get('jobCount')}")
+        if "레테" not in (formulas.get("knownJobs") or []):
+            raise AssertionError("formula response does not expose 레테")
+        coverage = formulas.get("coverage") or {}
+        if coverage.get("targetJobs") != formulas.get("jobCount"):
+            raise AssertionError(f"formula coverage target mismatch: {coverage}")
+        if coverage.get("missingDetailJobs") or coverage.get("missingMultiplierJobs") or coverage.get("missingCombatJobs"):
+            raise AssertionError(f"formula coverage has missing jobs: {coverage}")
+        lete = next((row for row in formulas.get("jobs") or [] if row.get("job") == "레테"), None)
+        if not lete or lete.get("mainStat") != "INT" or lete.get("attackType") != "마력":
+            raise AssertionError(f"formula response 레테 row mismatch: {lete}")
+        if float(lete.get("weaponConstant") or 0) <= 0 or float(lete.get("jobConvertedMultiplier") or 0) <= 0:
+            raise AssertionError(f"formula response 레테 coefficients missing: {lete}")
+        if "damageFactor" not in (formulas.get("formulas") or {}):
+            raise AssertionError(f"formula response calculation formula missing: {formulas}")
+        if formulas.get("bossRuleCount", 0) <= 0 or not formulas.get("bossRules"):
+            raise AssertionError(f"formula response boss rules missing: {formulas}")
+        if "bossEffectiveMetric" not in (formulas.get("formulas") or {}):
+            raise AssertionError(f"formula response boss effective formula missing: {formulas}")
+
         status, body = request_json(
             base_url,
             "/api/character",

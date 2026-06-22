@@ -490,30 +490,39 @@ JOB_DETAIL_RULES = [
 KMS_JOB_NAMES = tuple(str(rule["keywords"][0]) for rule in JOB_DETAIL_RULES)
 
 BOSS_RULES = [
-    {"name": "\ud558\ub4dc \uc720\ud53c\ud14c\ub974", "party": 188000, "solo": 430000},
-    {"name": "\ub178\ub9d0 \uc720\ud53c\ud14c\ub974", "party": 241000, "solo": 520000},
-    {"name": "\ud558\ub4dc \ubc1c\ub4dc\ub9ad\uc2a4", "party": 89000, "solo": 170000},
-    {"name": "\uc775\uc2a4\ud2b8\ub9bc \ub300\uc801\uc790", "party": 292000, "solo": 620000},
-    {"name": "\ud558\ub4dc \ub9bc\ubcf4", "party": 293000, "solo": 600000},
-    {"name": "\ub178\ub9d0 \ub9bc\ubcf4", "party": 247000, "solo": 480000},
-    {"name": "\uc775\uc2a4\ud2b8\ub9bc \uce74\ub9c1", "party": 203000, "solo": 360000},
-    {"name": "\uc775\uc2a4\ud2b8\ub9bc \uce7c\ub85c\uc2a4", "party": 193000, "solo": 340000},
-    {"name": "\ud558\ub4dc \uce74\ub9c1", "party": 176000, "solo": 300000},
-    {"name": "\uce74\uc624\uc2a4 \uce7c\ub85c\uc2a4", "party": 151000, "solo": 250000},
-    {"name": "\ub178\ub9d0 \uce74\ub9c1", "party": 161000, "solo": 220000},
-    {"name": "\ud558\ub4dc \uc138\ub80c", "party": 105000, "solo": 170000},
-    {"name": "\uac80\uc740 \ub9c8\ubc95\uc0ac", "party": 84000, "solo": 145000},
-    {"name": "\ud558\ub4dc \uc9c4\ud790\ub77c", "party": 68000, "solo": 116000},
-    {"name": "\ud558\ub4dc \ub4c4\ucf08", "party": 65000, "solo": 110000},
-    {"name": "\uce74\uc624\uc2a4 \ub354\uc2a4\ud06c", "party": 63000, "solo": 105000},
-    {"name": "\ud558\ub4dc \uc70c", "party": 54000, "solo": 93000},
-    {"name": "\ud558\ub4dc \ub8e8\uc2dc\ub4dc", "party": 52000, "solo": 90000},
-    {"name": "\ud558\ub4dc \ub370\ubbf8\uc548", "party": 39000, "solo": 70000},
-    {"name": "\ud558\ub4dc \uc2a4\uc6b0", "party": 38000, "solo": 68000},
+    {"name": "하드 유피테르", "party": 188000, "solo": 430000, "defense": 380, "forceType": "authentic", "forceRequired": 810, "symbolBoss": "유피테르"},
+    {"name": "노말 유피테르", "party": 241000, "solo": 520000, "defense": 380, "forceType": "authentic", "forceRequired": 810, "symbolBoss": "유피테르"},
+    {"name": "하드 발드릭스", "party": 89000, "solo": 170000, "defense": 380, "forceType": "authentic", "forceRequired": 700, "symbolBoss": "발드릭스"},
+    {"name": "익스트림 대적자", "party": 292000, "solo": 620000, "defense": 380, "forceType": "authentic", "forceRequired": 460, "symbolBoss": "대적자"},
+    {"name": "하드 림보", "party": 293000, "solo": 600000, "defense": 380, "forceType": "authentic", "forceRequired": 500, "symbolBoss": "림보", "totalHp": 12432000000000000},
+    {"name": "노말 림보", "party": 247000, "solo": 480000, "defense": 380, "forceType": "authentic", "forceRequired": 500, "symbolBoss": "림보", "totalHp": 6480000000000000},
+    {"name": "익스트림 카링", "party": 203000, "solo": 360000, "defense": 380, "forceType": "authentic", "forceRequired": 480, "symbolBoss": "카링"},
+    {"name": "익스트림 칼로스", "party": 193000, "solo": 340000, "defense": 380, "forceType": "authentic", "forceRequired": 440, "symbolBoss": "칼로스"},
+    {"name": "하드 카링", "party": 176000, "solo": 300000, "defense": 380, "forceType": "authentic", "forceRequired": 350, "symbolBoss": "카링", "totalHp": 12091000000000000},
+    {"name": "카오스 칼로스", "party": 151000, "solo": 250000, "defense": 380, "forceType": "authentic", "forceRequired": 330, "symbolBoss": "칼로스", "totalHp": 5082000000000000},
+    {"name": "노말 카링", "party": 161000, "solo": 220000, "defense": 380, "forceType": "authentic", "forceRequired": 330, "symbolBoss": "카링"},
+    {"name": "하드 세렌", "party": 105000, "solo": 170000, "defense": 380, "forceType": "authentic", "forceRequired": 200, "symbolBoss": "세렌", "totalHp": 483000000000000},
+    {"name": "검은 마법사", "party": 84000, "solo": 145000, "defense": 300, "forceType": "arcane", "forceRequired": 1320, "totalHp": 472500000000000},
+    {"name": "하드 진힐라", "party": 68000, "solo": 116000, "defense": 300, "forceType": "arcane", "forceRequired": 900, "totalHp": 176000000000000},
+    {"name": "하드 듄켈", "party": 65000, "solo": 110000, "defense": 300, "forceType": "arcane", "forceRequired": 850, "totalHp": 157500000000000},
+    {"name": "카오스 더스크", "party": 63000, "solo": 105000, "defense": 300, "forceType": "arcane", "forceRequired": 730, "totalHp": 127500000000000},
+    {"name": "하드 윌", "party": 54000, "solo": 93000, "defense": 300, "forceType": "arcane", "forceRequired": 760, "totalHp": 126000000000000},
+    {"name": "하드 루시드", "party": 52000, "solo": 90000, "defense": 300, "forceType": "arcane", "forceRequired": 360, "totalHp": 117600000000000},
+    {"name": "하드 데미안", "party": 39000, "solo": 70000, "defense": 300, "forceType": "", "forceRequired": 0},
+    {"name": "하드 스우", "party": 38000, "solo": 68000, "defense": 300, "forceType": "", "forceRequired": 0},
 ]
 BOSS_RULE_BASE_MINUTES = 30
 BOSS_RULE_TARGET_MINUTES = 20
 BOSS_RULE_DEFAULT_HP_RATIO = BOSS_RULE_TARGET_MINUTES / BOSS_RULE_BASE_MINUTES
+BOSS_FORCE_SOURCE = "Nexon force damage guide + 2026 boss force table"
+AUTHENTIC_SYMBOL_BOSS_MARKERS = (
+    ("세르니움", "세렌"),
+    ("아르크스", "칼로스"),
+    ("오디움", "대적자"),
+    ("도원경", "카링"),
+    ("카르시온", "림보"),
+    ("탈라하트", "발드릭스"),
+)
 
 
 def number(value: Any, default: float = 0.0) -> float:
@@ -1635,21 +1644,210 @@ def boss_time_adjustment(hp_ratio: float | None = None) -> float:
     return math.sqrt(max(0.0, ratio) * BOSS_RULE_BASE_MINUTES / BOSS_RULE_TARGET_MINUTES)
 
 
+def arcane_force_damage_multiplier(current_force: float, required_force: float) -> float:
+    if required_force <= 0:
+        return 1.0
+    ratio = current_force / required_force
+    if ratio < 0.10:
+        return 0.10
+    if ratio < 0.30:
+        return 0.30
+    if ratio < 0.50:
+        return 0.60
+    if ratio < 0.70:
+        return 0.70
+    if ratio < 1.00:
+        return 0.80
+    if ratio < 1.10:
+        return 1.00
+    if ratio < 1.30:
+        return 1.10
+    if ratio < 1.50:
+        return 1.30
+    return 1.50
+
+
+def authentic_force_damage_multiplier(current_force: float, required_force: float) -> float:
+    if required_force <= 0:
+        return 1.0
+    gap = current_force - required_force
+    if gap < 0:
+        return max(0.05, (100.0 + gap) / 100.0)
+    return min(1.25, 1.0 + gap / 200.0)
+
+
+def symbol_force_value(symbol: dict[str, Any]) -> float:
+    for key in (
+        "symbol_force",
+        "symbol_arcane_force",
+        "symbol_authentic_force",
+        "arcane_force",
+        "authentic_force",
+    ):
+        if key in symbol:
+            value = number(symbol.get(key))
+            if value:
+                return value
+
+    text = " ".join(str(symbol.get(key) or "") for key in ("symbol_name", "symbol_description"))
+    match = re.search(r"(?:아케인포스|어센틱포스|ARC|AUT)[^\d]*(\d+)", text, re.I)
+    return float(match.group(1)) if match else 0.0
+
+
+def symbol_force_summary(symbol_response: dict[str, Any]) -> dict[str, Any]:
+    arcane = 0.0
+    authentic = 0.0
+    boss_bonus: dict[str, float] = {}
+    rows = []
+    for symbol in symbol_response.get("symbol") or []:
+        if not isinstance(symbol, dict):
+            continue
+        name = str(symbol.get("symbol_name") or "")
+        level = int_number(symbol.get("symbol_level"))
+        force = symbol_force_value(symbol)
+        is_authentic = "어센틱" in name or "Authentic" in name or "AUT" in name
+        is_arcane = "아케인" in name or "Arcane" in name or "ARC" in name
+
+        if is_authentic:
+            authentic += force
+            if level >= 11:
+                for marker, boss_key in AUTHENTIC_SYMBOL_BOSS_MARKERS:
+                    if marker in name:
+                        boss_bonus[boss_key] = max(boss_bonus.get(boss_key, 1.0), 1.2)
+        elif is_arcane:
+            arcane += force
+
+        rows.append(
+            {
+                "name": name or "-",
+                "level": level,
+                "force": round(force),
+                "type": "authentic" if is_authentic else "arcane" if is_arcane else "",
+            }
+        )
+
+    return {
+        "arcane": round(arcane),
+        "authentic": round(authentic),
+        "bossBonus": boss_bonus,
+        "rows": rows,
+    }
+
+
+def boss_force_multiplier(boss: dict[str, Any], force_summary: dict[str, Any]) -> dict[str, Any]:
+    force_type = str(boss.get("forceType") or "")
+    required = float(boss.get("forceRequired") or 0.0)
+    if not force_type or required <= 0:
+        return {
+            "type": "",
+            "current": 0,
+            "required": 0,
+            "damageMultiplier": 1.0,
+            "status": "not_required",
+        }
+
+    current = float(force_summary.get(force_type) or 0.0)
+    if force_type == "arcane":
+        multiplier = arcane_force_damage_multiplier(current, required)
+    elif force_type == "authentic":
+        multiplier = authentic_force_damage_multiplier(current, required)
+    else:
+        multiplier = 1.0
+
+    if multiplier < 1.0:
+        status = "penalty"
+    elif multiplier > 1.0:
+        status = "bonus"
+    else:
+        status = "neutral"
+
+    return {
+        "type": force_type,
+        "current": round(current),
+        "required": round(required),
+        "damageMultiplier": round(multiplier, 4),
+        "status": status,
+    }
+
+
+def boss_symbol_bonus_multiplier(boss: dict[str, Any], force_summary: dict[str, Any]) -> float:
+    boss_key = str(boss.get("symbolBoss") or "")
+    if not boss_key:
+        return 1.0
+    return float((force_summary.get("bossBonus") or {}).get(boss_key) or 1.0)
+
+
+def boss_adjusted_metric(
+    converted: float,
+    stats: dict[str, float] | None,
+    boss: dict[str, Any],
+    force_summary: dict[str, Any],
+    apply_adjustments: bool = True,
+) -> dict[str, Any]:
+    boss_defence = int_number(boss.get("defense"), ARMOR)
+    if not apply_adjustments:
+        return {
+            "effectiveConverted": round(converted),
+            "damageMultiplier": 1.0,
+            "armor": {
+                "baseDefense": ARMOR,
+                "bossDefense": boss_defence,
+                "ignoredDefense": None,
+                "baseArmorFactor": 1.0,
+                "bossArmorFactor": 1.0,
+                "damageMultiplier": 1.0,
+            },
+            "force": {
+                "type": str(boss.get("forceType") or ""),
+                "current": None,
+                "required": int_number(boss.get("forceRequired")),
+                "damageMultiplier": 1.0,
+                "status": "unknown",
+            },
+            "symbolBossDamageMultiplier": 1.0,
+        }
+
+    ignored_defence = value_from(stats or {}, K_IED)
+    base_armor = armor_factor(ignored_defence, ARMOR)
+    boss_armor = armor_factor(ignored_defence, boss_defence)
+    armor_multiplier = boss_armor / base_armor if base_armor > 0 else 0.0
+    force = boss_force_multiplier(boss, force_summary)
+    symbol_bonus = boss_symbol_bonus_multiplier(boss, force_summary)
+    total_multiplier = max(0.0, armor_multiplier * float(force["damageMultiplier"]) * symbol_bonus)
+    effective_converted = converted * math.sqrt(total_multiplier) if total_multiplier > 0 else 0.0
+    return {
+        "effectiveConverted": round(effective_converted),
+        "damageMultiplier": round(total_multiplier, 4),
+        "armor": {
+            "baseDefense": ARMOR,
+            "bossDefense": boss_defence,
+            "ignoredDefense": round(ignored_defence, 2),
+            "baseArmorFactor": round(base_armor, 6),
+            "bossArmorFactor": round(boss_armor, 6),
+            "damageMultiplier": round(armor_multiplier, 4),
+        },
+        "force": force,
+        "symbolBossDamageMultiplier": round(symbol_bonus, 4),
+    }
+
+
 def boss_status(
     converted: float,
     party_min: float,
     solo_min: float,
     hp_ratio: float | None = None,
+    effective_converted: float | None = None,
 ) -> dict[str, Any]:
     adjustment = boss_time_adjustment(hp_ratio)
     base_party_min = party_min
     base_solo_min = solo_min
     party_min *= adjustment
     solo_min *= adjustment
-    party_ratio = converted / party_min * 100 if party_min else 0
-    solo_ratio = converted / solo_min * 100 if solo_min else 0
-    party_gap = converted - party_min
-    solo_gap = converted - solo_min
+    metric_for_boss = converted if effective_converted is None else effective_converted
+    party_ratio = metric_for_boss / party_min * 100 if party_min else 0
+    solo_ratio = metric_for_boss / solo_min * 100 if solo_min else 0
+    party_gap = metric_for_boss - party_min
+    solo_gap = metric_for_boss - solo_min
     if party_ratio < 100:
         label = "\ubd88\uac00\ub2a5"
         tone = "no"
@@ -1685,6 +1883,7 @@ def boss_status(
         "status": label,
         "tone": tone,
         "currentConverted": round(converted),
+        "effectiveConverted": round(metric_for_boss),
         "partyRequired": round(party_min),
         "soloRequired": round(solo_min),
         "basePartyRequired": round(base_party_min),
@@ -1703,11 +1902,24 @@ def boss_status(
     }
 
 
-def build_boss_board(converted: float) -> list[dict[str, Any]]:
+def build_boss_board(
+    converted: float,
+    stats: dict[str, float] | None = None,
+    symbol_response: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     result = []
+    force_summary = symbol_force_summary(symbol_response or {})
+    apply_adjustments = stats is not None or symbol_response is not None
     for boss in BOSS_RULES:
-        status = boss_status(converted, boss["party"], boss["solo"], boss.get("hpRatio"))
-        result.append({**boss, **status})
+        adjustment = boss_adjusted_metric(converted, stats, boss, force_summary, apply_adjustments)
+        status = boss_status(
+            converted,
+            boss["party"],
+            boss["solo"],
+            boss.get("hpRatio"),
+            adjustment["effectiveConverted"],
+        )
+        result.append({**boss, **status, "bossAdjustment": adjustment, "forceSummary": force_summary})
     return result
 
 
@@ -1729,21 +1941,29 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
         adjustment = float(row.get("timeAdjustment") or round(boss_time_adjustment(hp_ratio), 4))
         party_required = round(float(row.get("basePartyRequired") or 0.0) * adjustment)
         solo_required = round(float(row.get("baseSoloRequired") or 0.0) * adjustment)
-        party_ratio = round(metric_value / party_required * 100, 1) if party_required else 0.0
-        solo_ratio = round(metric_value / solo_required * 100, 1) if solo_required else 0.0
+        effective_value = int_number(row.get("effectiveConverted"), metric_value)
+        party_ratio = round(effective_value / party_required * 100, 1) if party_required else 0.0
+        solo_ratio = round(effective_value / solo_required * 100, 1) if solo_required else 0.0
         row_requirement_ok = int_number(row.get("partyRequired")) == party_required and int_number(row.get("soloRequired")) == solo_required
         row_ratio_ok = same_float(float(row.get("partyRatio") or 0.0), party_ratio) and same_float(float(row.get("soloRatio") or 0.0), solo_ratio)
-        row_possible_ok = bool(row.get("partyPossible")) == (metric_value >= party_required) and bool(row.get("soloPossible")) == (metric_value >= solo_required)
+        row_possible_ok = bool(row.get("partyPossible")) == (effective_value >= party_required) and bool(row.get("soloPossible")) == (effective_value >= solo_required)
         row_time_ok = (
             int_number(row.get("baseMinutes")) == BOSS_RULE_BASE_MINUTES
             and int_number(row.get("targetMinutes")) == BOSS_RULE_TARGET_MINUTES
             and same_float(float(row.get("timeAdjustment") or 0.0), round(boss_time_adjustment(hp_ratio), 4), 0.0001)
         )
+        boss_adjustment = row.get("bossAdjustment") or {}
+        adjustment_ok = (
+            int_number(boss_adjustment.get("effectiveConverted"), metric_value) == effective_value
+            and float(boss_adjustment.get("damageMultiplier") or 0.0) >= 0.0
+            and (boss_adjustment.get("armor") or {}).get("bossDefense") is not None
+            and (boss_adjustment.get("force") or {}).get("damageMultiplier") is not None
+        )
         requirement_ok = requirement_ok and row_requirement_ok
         ratio_ok = ratio_ok and row_ratio_ok
         possible_ok = possible_ok and row_possible_ok
-        time_ok = time_ok and row_time_ok
-        if not (row_requirement_ok and row_ratio_ok and row_possible_ok and row_time_ok):
+        time_ok = time_ok and row_time_ok and adjustment_ok
+        if not (row_requirement_ok and row_ratio_ok and row_possible_ok and row_time_ok and adjustment_ok):
             failed_rows.append(
                 {
                     "name": row.get("name") or "-",
@@ -1751,6 +1971,7 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
                     "ratioOk": row_ratio_ok,
                     "possibleOk": row_possible_ok,
                     "timeOk": row_time_ok,
+                    "adjustmentOk": adjustment_ok,
                 }
             )
 
@@ -1760,8 +1981,8 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
         {"id": "singleMetric", "label": "보스 기준 단일 지표", "passed": current_ok, "detail": f"대표 환산 {metric_value:,}"},
         {"id": "timeAdjustment", "label": "30분→20분 보정", "passed": time_ok, "detail": "sqrt(체력비율 * 기준시간 / 목표시간)"},
         {"id": "requirement", "label": "요구 환산", "passed": requirement_ok, "detail": "기준 요구 환산 * 시간/체력 보정"},
-        {"id": "ratio", "label": "가능 비율", "passed": ratio_ok, "detail": "대표 환산 / 요구 환산 * 100"},
-        {"id": "possibleFlag", "label": "가능 여부", "passed": possible_ok, "detail": "파티/솔플 100% 이상 가능"},
+        {"id": "ratio", "label": "가능 비율", "passed": ratio_ok, "detail": "보스별 유효 환산 / 요구 환산 * 100"},
+        {"id": "possibleFlag", "label": "가능 여부", "passed": possible_ok, "detail": "보스별 유효 환산이 파티/솔플 100% 이상이면 가능"},
     ]
     failed = [row for row in checks if not row["passed"]]
     return {
@@ -1773,8 +1994,10 @@ def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -
         "targetMinutes": BOSS_RULE_TARGET_MINUTES,
         "hpRatio": round(BOSS_RULE_DEFAULT_HP_RATIO, 4),
         "timeAdjustment": round(boss_time_adjustment(), 4),
-        "ratioFormula": "currentConverted / requiredConverted * 100",
+        "ratioFormula": "effectiveConverted / requiredConverted * 100",
         "requirementFormula": "baseRequired * sqrt(hpRatio * baseMinutes / targetMinutes)",
+        "effectiveMetricFormula": "대표 환산 * sqrt(방어율보정 * 포스보정 * 보스별 심볼 보너스)",
+        "forceSource": BOSS_FORCE_SOURCE,
         "allPassed": not failed,
         "checkCount": len(checks),
         "failedCount": len(failed),
@@ -3863,6 +4086,7 @@ def summarize_symbols(symbol_response: dict[str, Any]) -> list[dict[str, Any]]:
             "name": symbol.get("symbol_name") or "-",
             "icon": symbol.get("symbol_icon") or "",
             "level": int_number(symbol.get("symbol_level")),
+            "force": int_number(symbol_force_value(symbol)),
             "growth": symbol.get("symbol_growth_count") or "",
         }
         for symbol in symbol_response.get("symbol") or []
@@ -4457,7 +4681,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     boss_basis = round(unified_converted)
     best_preset = preset_optimization.get("best") or {}
     best_converted = best_preset.get("converted", boss_basis)
-    boss_board = build_boss_board(boss_basis)
+    boss_board = build_boss_board(boss_basis, stats, raw.get("symbol") or {})
     boss_board_audit = build_boss_board_audit(boss_board, boss_basis)
     coverage = calculation_coverage(character_class)
     formula_manifest = job_formula_manifest(character_class)

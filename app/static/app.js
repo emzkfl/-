@@ -273,17 +273,31 @@ function setActiveTab(tabName) {
 function renderBosses(data) {
   const primary = data.primaryMetric || {};
   const converted = primary.value || data.summary?.unifiedConverted380 || data.summary?.bossBasisConverted380 || data.summary?.converted380;
-  bossBasis.textContent = `${primary.label || data.summary?.unifiedBasis || "대표 환산"} ${formatNumber(converted)} · 20분 체력보정 기준`;
+  bossBasis.textContent = `${primary.label || data.summary?.unifiedBasis || "대표 환산"} ${formatNumber(converted)} · 방어율/포스/심볼 보정 후 보스별 판정`;
   bossList.innerHTML = (data.bossBoard || [])
     .map(
-      (boss) => `<article class="boss-card" data-tone="${escapeHtml(boss.tone)}">
+      (boss) => {
+        const adjustment = boss.bossAdjustment || {};
+        const armor = adjustment.armor || {};
+        const force = adjustment.force || {};
+        const forceText = force.type
+          ? `${force.type === "arcane" ? "아케인" : "어센틱"} ${formatNumber(force.current)} / ${formatNumber(force.required)} · ${formatNumber((force.damageMultiplier || 1) * 100, 1)}%`
+          : "포스 요구 없음";
+        const symbolBonus = adjustment.symbolBossDamageMultiplier && adjustment.symbolBossDamageMultiplier !== 1
+          ? ` · 심볼 보스뎀 ${formatNumber(adjustment.symbolBossDamageMultiplier * 100, 1)}%`
+          : "";
+        return `<article class="boss-card" data-tone="${escapeHtml(boss.tone)}">
         <div class="boss-card-head">
           <strong>${escapeHtml(boss.name)}</strong>
           <span>${escapeHtml(boss.status)}</span>
         </div>
         <div class="boss-values">
           <div>
-            <em>내 환산</em>
+            <em>유효 환산</em>
+            <b>${formatNumber(boss.effectiveConverted || boss.currentConverted || converted)}</b>
+          </div>
+          <div>
+            <em>대표 환산</em>
             <b>${formatNumber(boss.currentConverted || converted)}</b>
           </div>
           <div>
@@ -296,7 +310,9 @@ function renderBosses(data) {
           </div>
         </div>
         <small>20분 기준 · 파티 ${formatNumber(boss.partyRatio, 1)}% · 솔플 ${formatNumber(boss.soloRatio, 1)}% · ${escapeHtml(boss.gapLabel || "")}</small>
-      </article>`,
+        <small>방어율 ${formatNumber(armor.bossDefense || boss.defense || 0)}% · 방무 ${formatNumber(armor.ignoredDefense || 0, 2)}% · 포스 ${escapeHtml(forceText)}${symbolBonus}</small>
+      </article>`;
+      },
     )
     .join("");
 }

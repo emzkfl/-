@@ -22,6 +22,27 @@ python app\server.py
 http://127.0.0.1:4176/
 ```
 
+계산식 확인 API:
+
+```text
+GET http://127.0.0.1:4176/api/formulas
+```
+
+`/api/formulas`는 Nexon API를 호출하지 않고 서버가 사용하는 `unifiedConverted380` 대표 지표 공식, 전체 KMS 직업별 주스탯/공격타입/무기상수/보정배율, 누락 직업 검증 결과를 반환합니다.
+
+## 보스 가능 판정
+
+보스 탭의 가능 비율은 단순히 `대표 환산 / 요구 환산`으로 계산하지 않습니다.
+
+```text
+보스별 유효 환산 = 대표 환산 * sqrt(방어율 보정 * 포스 보정 * 보스별 심볼 보너스)
+가능 비율 = 보스별 유효 환산 / 요구 환산 * 100
+```
+
+- 방어율 보정: 보스 방어율과 캐릭터 방어율 무시 수치를 반영합니다.
+- 포스 보정: 아케인포스/어센틱포스 요구량과 캐릭터 보유 포스를 비교합니다.
+- 보스별 심볼 보너스: 어센틱심볼 11레벨 이상 보유 시 세렌/칼로스/대적자/카링/림보/발드릭스 보스 공격 시 데미지 +20%를 반영합니다.
+
 ## 검증
 
 전체 검증:
@@ -55,7 +76,7 @@ python scripts\verify_ranking_single_metric.py
 `verify_official_job_catalog.py`는 Nexon 공식 직업소개 페이지와 로컬 직업별 계산식 목록을 비교합니다.
 `verify_nexon_endpoint_contract.py`는 실제 조회하는 Nexon API 섹션과 계산 입력 계약이 일치하는지 확인합니다.
 `verify_fetch_character_contract.py`는 필수 API 실패는 중단하고 선택 API 실패는 진단 상태로 계산을 유지하는지 확인합니다.
-`verify_server_http_contract.py`는 `/api/health`와 `/api/character`의 HTTP 상태코드와 JSON 응답 계약을 확인합니다.
+`verify_server_http_contract.py`는 `/api/health`, `/api/formulas`, `/api/character`의 HTTP 상태코드와 JSON 응답 계약을 확인합니다.
 `verify_frontend_single_metric.py`는 화면 상단에 대표 환산 하나만 표시하고 나머지는 신뢰도/근거로 표시하는지 확인합니다.
 `verify_frontend_repair_output.py`는 화면에 아이템 개선 부위, 현재 상태, 추천 행동, 기대 상승량, 약점과 근거가 표시되는지 확인합니다.
 `verify_ranking_single_metric.py`는 원사이트 랭킹 샘플 1,440개에서 대표 지표가 보스/프리셋/장비 기준과 갈라지지 않는지 확인합니다.

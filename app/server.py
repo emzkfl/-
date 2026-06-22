@@ -6,6 +6,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from calc import BOSS_RULES, BOSS_FORCE_SOURCE, calculation_coverage, job_formula_manifest
 from nexon import NexonApiError, default_date, fetch_character
 
 
@@ -36,6 +37,42 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/health":
             self.send_json(200, {"ok": True, "defaultDate": default_date()})
+            return
+        if path == "/api/formulas":
+            manifest = job_formula_manifest()
+            coverage = calculation_coverage("레테")
+            self.send_json(
+                200,
+                {
+                    "ok": True,
+                    "metricId": "unifiedConverted380",
+                    "metricLabel": "대표 환산(380)",
+                    "formulaSource": manifest["source"],
+                    "jobCount": manifest["jobCount"],
+                    "knownJobs": manifest["knownJobs"],
+                    "jobs": manifest["jobs"],
+                    "bossRuleCount": len(BOSS_RULES),
+                    "bossRules": BOSS_RULES,
+                    "coverage": {
+                        "targetJobs": coverage["targetJobs"],
+                        "coveredDetailJobs": coverage["coveredDetailJobs"],
+                        "coveredMultiplierJobs": coverage["coveredMultiplierJobs"],
+                        "coveredCombatJobs": coverage["coveredCombatJobs"],
+                        "missingDetailJobs": coverage["missingDetailJobs"],
+                        "missingMultiplierJobs": coverage["missingMultiplierJobs"],
+                        "missingCombatJobs": coverage["missingCombatJobs"],
+                    },
+                    "formulas": {
+                        "mainStat": "기본스탯 * (1 + 스탯% / 100) + % 미적용",
+                        "attack": "공격력/마력 * (1 + 공격력%/마력% / 100)",
+                        "damageFactor": "(1 + (보공 + 데미지) / 100) * (1 + 최종뎀 / 100) * 방어율계수 * 크리계수 * 주스탯계수 * 공격력계수 * 속성계수 * 무기상수 * 0.01 * 숙련도평균",
+                        "representativeMetric": "round(HEXA 보정 환산 380)",
+                        "bossEffectiveMetric": "대표 환산 * sqrt(방어율보정 * 포스보정 * 보스별 심볼 보너스)",
+                        "bossRatio": "보스별 유효 환산 / 요구 환산 * 100",
+                    },
+                    "bossForceSource": BOSS_FORCE_SOURCE,
+                },
+            )
             return
         if path == "/":
             self.path = "/index.html"

@@ -27,7 +27,7 @@ http://127.0.0.1:4176/
 Python/JavaScript 문법 검사:
 
 ```powershell
-python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_calculation.py scripts\verify_calibration_tables.py scripts\verify_goal_readiness.py scripts\verify_official_job_catalog.py scripts\verify_nexon_endpoint_contract.py scripts\verify_fetch_character_contract.py scripts\verify_frontend_single_metric.py scripts\verify_ranking_single_metric.py
+python -m py_compile app\calc.py app\server.py app\nexon.py scripts\verify_calculation.py scripts\verify_calibration_tables.py scripts\verify_goal_readiness.py scripts\verify_official_job_catalog.py scripts\verify_nexon_endpoint_contract.py scripts\verify_fetch_character_contract.py scripts\verify_frontend_single_metric.py scripts\verify_frontend_repair_output.py scripts\verify_ranking_single_metric.py
 node --check app\static\app.js
 ```
 
@@ -41,6 +41,7 @@ python scripts\verify_official_job_catalog.py
 python scripts\verify_nexon_endpoint_contract.py
 python scripts\verify_fetch_character_contract.py
 python scripts\verify_frontend_single_metric.py
+python scripts\verify_frontend_repair_output.py
 python scripts\verify_ranking_single_metric.py
 ```
 
@@ -48,6 +49,7 @@ python scripts\verify_ranking_single_metric.py
 `verify_nexon_endpoint_contract.py`는 실제 조회하는 Nexon API 섹션과 계산 입력 계약이 일치하는지 확인합니다.
 `verify_fetch_character_contract.py`는 필수 API 실패는 중단하고 선택 API 실패는 진단 상태로 계산을 유지하는지 확인합니다.
 `verify_frontend_single_metric.py`는 화면 상단에 대표 환산 하나만 표시하고 나머지는 신뢰도/근거로 표시하는지 확인합니다.
+`verify_frontend_repair_output.py`는 화면에 아이템 개선 부위, 현재 상태, 추천 행동, 기대 상승량, 약점과 근거가 표시되는지 확인합니다.
 `verify_ranking_single_metric.py`는 원사이트 랭킹 샘플 1,440개에서 대표 지표가 보스/프리셋/장비 기준과 갈라지지 않는지 확인합니다.
 
 ## Render 배포

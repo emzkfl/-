@@ -58,6 +58,8 @@ python scripts\verify_ranking_single_metric.py
 `verify_frontend_repair_output.py`는 화면에 아이템 개선 부위, 현재 상태, 추천 행동, 기대 상승량, 약점과 근거가 표시되는지 확인합니다.
 `verify_ranking_single_metric.py`는 원사이트 랭킹 샘플 1,440개에서 대표 지표가 보스/프리셋/장비 기준과 갈라지지 않는지 확인합니다.
 
+GitHub에 push 또는 pull request가 올라가면 `.github/workflows/verify.yml`이 `python scripts\verify_all.py`를 실행합니다.
+
 ## Render 배포
 
 이 저장소에는 Render Blueprint 설정인 `render.yaml`이 포함되어 있습니다.

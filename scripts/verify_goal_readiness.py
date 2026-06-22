@@ -7,7 +7,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.calc import JOB_DETAIL_RULES, KMS_JOB_NAMES, build_view_model  # noqa: E402
+from app.calc import API_OPTIONAL_SECTIONS, JOB_DETAIL_RULES, KMS_JOB_NAMES, build_view_model  # noqa: E402
 from scripts.verify_calculation import (  # noqa: E402
     formula_integrity_failures,
     formula_manifest_failures,
@@ -268,6 +268,48 @@ def assert_job_view(rule: dict[str, Any]) -> list[str]:
     return failures
 
 
+def assert_optional_api_failure_resilience(rule: dict[str, Any]) -> list[str]:
+    job = str(rule["keywords"][0])
+    context = f"optional API failure {job}"
+    raw = rule_sample_raw(rule)
+    failed_sections = {
+        "hexamatrix",
+        "hexamatrixStat",
+        "linkSkill",
+        "vmatrix",
+        "skill5",
+        "skill6",
+    }
+    raw["warnings"] = [
+        {"section": section, "message": "sample optional API failure"}
+        for section in sorted(failed_sections)
+    ]
+    for section in failed_sections:
+        raw.pop(section, None)
+
+    view = build_view_model(raw)
+    quality = view.get("apiDataQuality") or {}
+    failures: list[str] = []
+
+    if quality.get("status") != "warning":
+        failures.append(f"{context}: API quality status is not warning")
+    if quality.get("missingRequiredSections"):
+        failures.append(f"{context}: required sections are missing {quality.get('missingRequiredSections')}")
+    if not failed_sections.issubset(set(quality.get("warningSections") or [])):
+        failures.append(f"{context}: warning sections do not include failed optional sections")
+    if not failed_sections.issubset(set(quality.get("missingOptionalSections") or [])):
+        failures.append(f"{context}: missing optional sections do not include failed optional sections")
+    for section in failed_sections:
+        if section not in API_OPTIONAL_SECTIONS:
+            failures.append(f"{context}: failed section {section} is not registered optional API")
+
+    failures.extend(assert_unified_metric(view, context))
+    failures.extend(assert_repair_plan(view, context))
+    failures.extend(input_source_failures(view, context))
+    failures.extend(readiness_failures(view, context, {"ready", "caution"}))
+    return failures
+
+
 def assert_goal_readiness() -> None:
     failures: list[str] = []
     if len(KMS_JOB_NAMES) != len(JOB_DETAIL_RULES):
@@ -279,6 +321,7 @@ def assert_goal_readiness() -> None:
 
     for rule in JOB_DETAIL_RULES:
         failures.extend(assert_job_view(rule))
+        failures.extend(assert_optional_api_failure_resilience(rule))
 
     if failures:
         raise AssertionError("\n".join(failures))

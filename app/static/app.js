@@ -31,6 +31,7 @@ const hyperList = document.querySelector("#hyper-list");
 const extraList = document.querySelector("#extra-list");
 const coverageList = document.querySelector("#coverage-list");
 const upgradeSummary = document.querySelector("#upgrade-summary");
+const upgradeCategoryList = document.querySelector("#upgrade-category-list");
 const upgradeList = document.querySelector("#upgrade-list");
 const equipmentSummary = document.querySelector("#equipment-summary");
 const itemList = document.querySelector("#item-list");
@@ -385,6 +386,14 @@ function renderUpgradePlan(data) {
   const rows = plan.top || [];
   const targets = (plan.upgradeTargets || []).join("/");
   upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${targets ? ` · ${targets}` : ""}`;
+  upgradeCategoryList.innerHTML = (plan.categorySummary || [])
+    .slice(0, 5)
+    .map((category) => `<article class="upgrade-category">
+      <span>${escapeHtml(category.type)}</span>
+      <strong>+${formatNumber(category.totalGain)}</strong>
+      <small>${formatNumber(category.sharePercent, 1)}% · ${escapeHtml(category.bestItem || "-")} · ${escapeHtml(category.bestAction || "-")}</small>
+    </article>`)
+    .join("");
   if (!rows.length) {
     upgradeList.innerHTML = `<article class="upgrade-card empty-card">
       <strong>추천할 개선 항목이 없습니다</strong>

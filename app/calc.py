@@ -1659,6 +1659,49 @@ def item_contribution(
     return max(0.0, current_converted - converted["converted"] * score_multiplier)
 
 
+def build_upgrade_category_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    categories: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        for scenario in row.get("scenarios") or []:
+            gain = float(scenario.get("gain") or 0.0)
+            if gain <= 0:
+                continue
+            label = str(scenario.get("type") or "기타")
+            bucket = categories.setdefault(
+                label,
+                {
+                    "type": label,
+                    "totalGain": 0.0,
+                    "candidateCount": 0,
+                    "bestGain": 0.0,
+                    "bestItem": "",
+                    "bestAction": "",
+                },
+            )
+            bucket["totalGain"] += gain
+            bucket["candidateCount"] += 1
+            if gain > bucket["bestGain"]:
+                bucket["bestGain"] = gain
+                bucket["bestItem"] = row.get("name") or "-"
+                bucket["bestAction"] = scenario.get("action") or row.get("recommendedAction") or "-"
+
+    total_gain = sum(row["totalGain"] for row in categories.values())
+    result = []
+    for row in categories.values():
+        result.append(
+            {
+                "type": row["type"],
+                "totalGain": round(row["totalGain"]),
+                "sharePercent": round(row["totalGain"] / total_gain * 100, 1) if total_gain else 0.0,
+                "candidateCount": row["candidateCount"],
+                "bestGain": round(row["bestGain"]),
+                "bestItem": row["bestItem"],
+                "bestAction": row["bestAction"],
+            }
+        )
+    return sorted(result, key=lambda row: (row["totalGain"], row["bestGain"]), reverse=True)
+
+
 def build_item_upgrade_plan(
     stats: dict[str, float],
     item_response: dict[str, Any],
@@ -1731,6 +1774,7 @@ def build_item_upgrade_plan(
         )
 
     rows.sort(key=lambda row: (row["priorityScore"], row["expectedGain"], -row["contribution"]), reverse=True)
+    category_summary = build_upgrade_category_summary(rows)
     return {
         "basis": basis,
         "scoreMultiplier": round(score_multiplier, 6),
@@ -1738,6 +1782,8 @@ def build_item_upgrade_plan(
         "mainStat": main_stat,
         "attackType": attack_type,
         "upgradeTargets": stat_targets,
+        "categorySummary": category_summary,
+        "primaryCategory": category_summary[0] if category_summary else None,
         "method": "\uc7a5\ube44\ubcc4 \uac1c\uc120 \uc2dc\ub098\ub9ac\uc624\ub97c \ud658\uc0b0 \uc0c1\uc2b9\ub7c9\uc73c\ub85c \uc7ac\uacc4\uc0b0",
         "top": rows[:8],
         "all": rows,

@@ -146,7 +146,7 @@ function renderProfileIcons(items) {
 function renderScores(data) {
   const summary = data.summary || {};
   combatPower.textContent = koreanPower(summary.combatPower);
-  convertedPower.textContent = formatNumber(summary.converted380);
+  convertedPower.textContent = formatNumber(summary.unifiedConverted380 || summary.hexaConverted380 || summary.converted380);
   hexaPower.textContent = formatNumber(summary.hexaConverted380);
   hexaDetail.textContent = `스킬 Lv합 ${formatNumber(summary.hexaSkillTotalLevel || 0)} · 완성도 ${formatNumber(summary.hexaCompletionPercent || 100, 2)}%`;
 }
@@ -202,7 +202,8 @@ function renderPresetBrowser(data) {
   renderPresetButtonGroup(hyperPresetButtons, "hyperPreset", views.hyper || [], selectedPresets.hyperPreset);
 
   const combo = selectedCombination(data);
-  selectedPresetSummary.textContent = `장비 ${selectedPresets.itemPreset || "-"} · 어빌 ${selectedPresets.abilityPreset || "-"} · 하이퍼 ${selectedPresets.hyperPreset || "-"}`;
+  const basis = data.presetOptimization?.basis || data.summary?.unifiedBasis || "대표 환산";
+  selectedPresetSummary.textContent = `${basis} · 장비 ${selectedPresets.itemPreset || "-"} · 어빌 ${selectedPresets.abilityPreset || "-"} · 하이퍼 ${selectedPresets.hyperPreset || "-"}`;
   selectedPresetValue.textContent = formatNumber(combo?.converted);
   const delta = Number(combo?.delta || 0);
   selectedPresetDelta.textContent = combo
@@ -236,8 +237,8 @@ function setActiveTab(tabName) {
 }
 
 function renderBosses(data) {
-  const converted = data.summary?.bossBasisConverted380 || data.summary?.converted380;
-  bossBasis.textContent = `헥사환산 ${formatNumber(converted)} · 20분 체력보정 기준`;
+  const converted = data.summary?.unifiedConverted380 || data.summary?.bossBasisConverted380 || data.summary?.converted380;
+  bossBasis.textContent = `${data.summary?.unifiedBasis || "대표 환산"} ${formatNumber(converted)} · 20분 체력보정 기준`;
   bossList.innerHTML = (data.bossBoard || [])
     .map(
       (boss) => `<article class="boss-card" data-tone="${escapeHtml(boss.tone)}">
@@ -383,7 +384,7 @@ function renderUpgradePlan(data) {
   const plan = data.itemUpgradePlan || {};
   const rows = plan.top || [];
   const targets = (plan.upgradeTargets || []).join("/");
-  upgradeSummary.textContent = `${plan.basis || "환산(380)"} · ${formatNumber(plan.currentConverted || data.summary?.converted380 || 0)}${targets ? ` · ${targets}` : ""}`;
+  upgradeSummary.textContent = `${plan.basis || data.summary?.unifiedBasis || "대표 환산"} · ${formatNumber(plan.currentConverted || data.summary?.unifiedConverted380 || 0)}${targets ? ` · ${targets}` : ""}`;
   if (!rows.length) {
     upgradeList.innerHTML = `<article class="upgrade-card empty-card">
       <strong>추천할 개선 항목이 없습니다</strong>

@@ -1104,6 +1104,8 @@ def optimize_presets(
     raw: dict[str, Any],
     stats: dict[str, float],
     character_class: str | None = None,
+    score_multiplier: float = 1.0,
+    basis: str = "\ud658\uc0b0(380)",
 ) -> dict[str, Any]:
     item_response = raw.get("itemEquipment") or {}
     ability_response = raw.get("ability") or {}
@@ -1135,12 +1137,14 @@ def optimize_presets(
                     character_class=character_class,
                     use_combat_model=False,
                 )
+                unified_converted = converted["converted"] * score_multiplier
                 candidates.append(
                     {
                         "itemPreset": item_no,
                         "abilityPreset": ability_no,
                         "hyperPreset": hyper_no,
-                        "converted": round(converted["converted"]),
+                        "converted": round(unified_converted),
+                        "rawConverted": round(converted["converted"]),
                         "damageFactor": round(converted["damageFactor"]),
                         "mainStat": converted["mainStat"],
                         "attackType": converted["attackType"],
@@ -1157,6 +1161,8 @@ def optimize_presets(
 
     return {
         "active": {"itemPreset": active_item, "abilityPreset": active_ability, "hyperPreset": active_hyper},
+        "basis": basis,
+        "scoreMultiplier": round(score_multiplier, 6),
         "best": best,
         "current": current,
         "top": candidates[:9],
@@ -1352,6 +1358,7 @@ def item_upgrade_gain(
     character_class: str,
     current_converted: float,
     delta: dict[str, dict[str, float]],
+    score_multiplier: float = 1.0,
 ) -> float:
     adjusted = apply_profile_delta(stats, delta)
     converted = converted_score(
@@ -1360,7 +1367,7 @@ def item_upgrade_gain(
         character_class=character_class,
         use_combat_model=False,
     )
-    return max(0.0, converted["converted"] - current_converted)
+    return max(0.0, converted["converted"] * score_multiplier - current_converted)
 
 
 def gain_scenario(
@@ -1371,10 +1378,11 @@ def gain_scenario(
     group: str,
     key: str,
     value: float,
+    score_multiplier: float = 1.0,
 ) -> float:
     delta = empty_profile()
     add_to_profile(delta, group, key, value)
-    return item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
+    return item_upgrade_gain(stats, item_response, character_class, current_converted, delta, score_multiplier)
 
 
 def gain_multi_scenario(
@@ -1385,11 +1393,12 @@ def gain_multi_scenario(
     group: str,
     keys: list[str],
     value: float,
+    score_multiplier: float = 1.0,
 ) -> float:
     delta = empty_profile()
     for key in keys:
         add_to_profile(delta, group, key, value)
-    return item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
+    return item_upgrade_gain(stats, item_response, character_class, current_converted, delta, score_multiplier)
 
 
 def best_item_upgrade_scenarios(
@@ -1400,6 +1409,7 @@ def best_item_upgrade_scenarios(
     main_stat: str,
     attack_type: str,
     current_converted: float,
+    score_multiplier: float = 1.0,
 ) -> list[dict[str, Any]]:
     scenarios: list[dict[str, Any]] = []
     weapon_like = is_weapon_like_item(item)
@@ -1412,7 +1422,7 @@ def best_item_upgrade_scenarios(
         current_attack_percent = potential_profile["percent"].get(attack_type, 0.0)
         attack_gap = min(12.0, max(0.0, target_attack_percent - current_attack_percent))
         if attack_gap > 0:
-            gain = gain_scenario(stats, item_response, character_class, current_converted, "percent", attack_type, attack_gap)
+            gain = gain_scenario(stats, item_response, character_class, current_converted, "percent", attack_type, attack_gap, score_multiplier)
             scenarios.append(
                 {
                     "type": "\uc7a0\uc7ac\uc635\uc158",
@@ -1424,7 +1434,7 @@ def best_item_upgrade_scenarios(
 
         boss_gap = min(30.0, max(0.0, 30.0 - potential_profile["combat"].get(K_BOSS, 0.0)))
         if boss_gap > 0 and "\uc5e0\ube14\ub818" not in str(item.get("item_equipment_slot") or ""):
-            gain = gain_scenario(stats, item_response, character_class, current_converted, "combat", K_BOSS, boss_gap)
+            gain = gain_scenario(stats, item_response, character_class, current_converted, "combat", K_BOSS, boss_gap, score_multiplier)
             scenarios.append(
                 {
                     "type": "\uc7a0\uc7ac\uc635\uc158",
@@ -1446,6 +1456,7 @@ def best_item_upgrade_scenarios(
                 "percent",
                 stat_targets,
                 main_gap,
+                score_multiplier,
             )
             scenarios.append(
                 {
@@ -1459,7 +1470,7 @@ def best_item_upgrade_scenarios(
     add_attack = additional_profile["flat"].get(attack_type, 0.0)
     add_attack_gap = min(10.0, max(0.0, 10.0 - add_attack))
     if add_attack_gap > 0:
-        gain = gain_scenario(stats, item_response, character_class, current_converted, "flat", attack_type, add_attack_gap)
+        gain = gain_scenario(stats, item_response, character_class, current_converted, "flat", attack_type, add_attack_gap, score_multiplier)
         scenarios.append(
             {
                 "type": "\uc5d0\ub514\uc154\ub110",
@@ -1475,7 +1486,7 @@ def best_item_upgrade_scenarios(
         for key in stat_targets:
             add_to_profile(delta, "flat", key, 210.0 if key == K_HP else 7.0)
         add_to_profile(delta, "flat", attack_type, 2.0)
-        gain = item_upgrade_gain(stats, item_response, character_class, current_converted, delta)
+        gain = item_upgrade_gain(stats, item_response, character_class, current_converted, delta, score_multiplier)
         scenarios.append(
             {
                 "type": "\uc2a4\ud0c0\ud3ec\uc2a4",
@@ -1494,6 +1505,7 @@ def item_contribution(
     stats: dict[str, float],
     character_class: str,
     current_converted: float,
+    score_multiplier: float = 1.0,
 ) -> float:
     profile = equipment_profile([item])
     adjusted = apply_profile_delta(stats, subtract_profiles(empty_profile(), profile))
@@ -1505,7 +1517,7 @@ def item_contribution(
         character_class=character_class,
         use_combat_model=False,
     )
-    return max(0.0, current_converted - converted["converted"])
+    return max(0.0, current_converted - converted["converted"] * score_multiplier)
 
 
 def build_item_upgrade_plan(
@@ -1513,9 +1525,12 @@ def build_item_upgrade_plan(
     item_response: dict[str, Any],
     converted: dict[str, Any],
     character_class: str,
+    current_converted_override: float | None = None,
+    score_multiplier: float = 1.0,
+    basis: str = "\ud658\uc0b0(380)",
 ) -> dict[str, Any]:
     items = item_response.get("item_equipment") or []
-    current_converted = float(converted.get("converted") or 0.0)
+    current_converted = float(current_converted_override if current_converted_override is not None else converted.get("converted") or 0.0)
     main_stat = str(converted.get("mainStat") or choose_main_stat(stats, character_class))
     attack_type = str(converted.get("attackType") or choose_attack_type(stats, character_class))
     stat_targets = item_upgrade_stat_targets(character_class, main_stat)
@@ -1530,12 +1545,13 @@ def build_item_upgrade_plan(
             main_stat,
             attack_type,
             current_converted,
+            score_multiplier,
         )
         scenarios = [scenario for scenario in scenarios if scenario["gain"] > 0]
         if not scenarios:
             continue
         best = scenarios[0]
-        contribution = item_contribution(item, items, stats, character_class, current_converted)
+        contribution = item_contribution(item, items, stats, character_class, current_converted, score_multiplier)
         starforce = int_number(item.get("starforce"))
         grade = str(item.get("potential_option_grade") or "-")
         additional_grade = str(item.get("additional_potential_option_grade") or "-")
@@ -1577,7 +1593,8 @@ def build_item_upgrade_plan(
 
     rows.sort(key=lambda row: (row["priorityScore"], row["expectedGain"], -row["contribution"]), reverse=True)
     return {
-        "basis": "\ud658\uc0b0(380)",
+        "basis": basis,
+        "scoreMultiplier": round(score_multiplier, 6),
         "currentConverted": round(current_converted),
         "mainStat": main_stat,
         "attackType": attack_type,
@@ -2045,10 +2062,27 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     main_stat = converted["mainStat"]
     attack_type = converted["attackType"]
     items = summarize_items(item_response, main_stat, attack_type)
-    item_upgrade_plan = build_item_upgrade_plan(stats, item_response, converted, character_class)
-    preset_optimization = optimize_presets(raw, stats, character_class=character_class)
+    unified_converted = float(hexa_converted["converted"])
+    unified_multiplier = unified_converted / converted["converted"] if converted["converted"] else 1.0
+    unified_basis = "\ud5e5\uc0ac\ud658\uc0b0(380)"
+    item_upgrade_plan = build_item_upgrade_plan(
+        stats,
+        item_response,
+        converted,
+        character_class,
+        current_converted_override=unified_converted,
+        score_multiplier=unified_multiplier,
+        basis=unified_basis,
+    )
+    preset_optimization = optimize_presets(
+        raw,
+        stats,
+        character_class=character_class,
+        score_multiplier=unified_multiplier,
+        basis=unified_basis,
+    )
     preset_views = build_preset_views(raw, main_stat, attack_type, preset_optimization)
-    boss_basis = round(hexa_converted["converted"])
+    boss_basis = round(unified_converted)
     best_preset = preset_optimization.get("best") or {}
     best_converted = best_preset.get("converted", boss_basis)
     boss_board = build_boss_board(boss_basis)
@@ -2062,6 +2096,9 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
             "combatPower": combat_power,
             "converted380": round(converted["converted"]),
             "hexaConverted380": round(hexa_converted["converted"]),
+            "unifiedConverted380": boss_basis,
+            "unifiedBasis": unified_basis,
+            "unifiedScoreMultiplier": round(unified_multiplier, 6),
             "hexaGap380": round(hexa_converted["gap"]),
             "hexaSkillTotalLevel": hexa_converted["skillEffect"]["totalLevel"],
             "hexaSkillEffectPercent": round(hexa_converted["skillEffect"]["effectRate"] * 100, 2),

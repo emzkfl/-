@@ -88,6 +88,10 @@ def assert_sample_view_model() -> None:
     assert coverage["current"]["job"] == "레테"
     assert view["summary"]["mainStat"] == "INT"
     assert view["summary"]["attackType"] == "마력"
+    assert view["summary"]["unifiedConverted380"] == view["summary"]["bossBasisConverted380"]
+    assert view["summary"]["unifiedBasis"] == view["itemUpgradePlan"]["basis"]
+    assert view["itemUpgradePlan"]["currentConverted"] == view["summary"]["unifiedConverted380"]
+    assert view["bossBoard"][0]["currentConverted"] == view["summary"]["unifiedConverted380"]
     assert view["itemUpgradePlan"]["top"]
     assert view["itemUpgradePlan"]["top"][0]["priorityScore"] > 0
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
@@ -168,10 +172,21 @@ def assert_special_item_targets() -> None:
     assert any("STR/DEX/LUK" in weakness["label"] for row in xenon_plan["top"] for weakness in row["weaknesses"])
 
 
+def assert_preset_metric_basis() -> None:
+    raw = sample_raw("레테", "INT", "마력", "INT : +3%")
+    raw["itemEquipment"]["preset_no"] = 1
+    raw["itemEquipment"]["item_equipment_preset_1"] = raw["itemEquipment"]["item_equipment"]
+    view = build_view_model(raw)
+    assert view["presetOptimization"]["basis"] == view["summary"]["unifiedBasis"]
+    assert view["presetOptimization"]["current"]["converted"] == view["summary"]["unifiedConverted380"]
+    assert view["presetViews"]["combinations"][0]["converted"] == view["summary"]["unifiedConverted380"]
+
+
 def main() -> None:
     assert_full_job_coverage()
     assert_sample_view_model()
     assert_special_item_targets()
+    assert_preset_metric_basis()
     print(f"OK: {len(KMS_JOB_NAMES)} KMS jobs covered")
 
 

@@ -11,6 +11,17 @@ sys.path.insert(0, str(ROOT))
 from app.calc import (  # noqa: E402
     CALIBRATION_EVIDENCE,
     KMS_JOB_NAMES,
+    K_ATTACK,
+    K_BOSS,
+    K_COMBAT,
+    K_CRIT_DAMAGE,
+    K_CRIT_RATE,
+    K_DAMAGE,
+    K_FINAL,
+    K_HP,
+    K_IED,
+    K_MAGIC,
+    build_view_model,
     choose_attack_type,
     choose_main_stat,
     job_converted_multiplier,
@@ -19,6 +30,8 @@ from app.calc import (  # noqa: E402
 
 
 MAX_SAMPLE_ERROR_PERCENT = 0.01
+MAX_SPECIAL_SAMPLE_ERROR_PERCENT = 5.0
+MAX_SPECIAL_AVERAGE_ERROR_PERCENT = 2.5
 
 
 def read_json(path: Path) -> dict[str, Any] | None:
@@ -108,15 +121,91 @@ def assert_ranking_samples(data: dict[str, Any]) -> None:
         raise AssertionError("\n".join(problems))
 
 
+def special_sample_raw(row: dict[str, Any]) -> dict[str, Any]:
+    stats = [
+        ("STR", row.get("STR")),
+        ("DEX", row.get("DEX")),
+        ("INT", row.get("INT")),
+        ("LUK", row.get("LUK")),
+        (K_HP, row.get("HP")),
+        (K_ATTACK, row.get("attack")),
+        (K_MAGIC, row.get("magic")),
+        (K_DAMAGE, row.get("damage")),
+        (K_BOSS, row.get("bossDamage")),
+        (K_FINAL, row.get("finalDamage")),
+        (K_IED, row.get("ied")),
+        (K_CRIT_RATE, row.get("critRate")),
+        (K_CRIT_DAMAGE, row.get("critDamage")),
+        (K_COMBAT, row.get("originCombatPower")),
+    ]
+    return {
+        "basic": {
+            "character_name": row.get("name") or "special-sample",
+            "world_name": "-",
+            "character_class": row.get("class") or row.get("job") or "",
+            "character_level": row.get("level") or 0,
+        },
+        "stat": {
+            "final_stat": [
+                {"stat_name": key, "stat_value": str(value)}
+                for key, value in stats
+                if value is not None
+            ]
+        },
+        "itemEquipment": {"item_equipment": []},
+    }
+
+
+def assert_special_job_samples(data: dict[str, Any]) -> None:
+    rows = data.get("rows") or []
+    problems: list[str] = []
+    if len(rows) < 40:
+        problems.append(f"special-job-samples.json expected at least 40 rows, got {len(rows)}")
+
+    errors = []
+    jobs = set()
+    for row in rows:
+        job = str(row.get("job") or "")
+        jobs.add(job)
+        origin = float(row.get("originConverted") or 0.0)
+        if origin <= 0:
+            problems.append(f"{job}/{row.get('name')}: originConverted missing")
+            continue
+        view = build_view_model(special_sample_raw(row))
+        primary = float(view["primaryMetric"]["value"])
+        error = abs(primary - origin) / origin * 100
+        errors.append(error)
+        if error > MAX_SPECIAL_SAMPLE_ERROR_PERCENT:
+            problems.append(
+                f"{job}/{row.get('name')}: primaryMetric error {error:.3f}% "
+                f"({primary:.0f} != {origin:.0f})"
+            )
+
+    if jobs != {"데몬어벤져", "제논"}:
+        problems.append(f"special sample jobs drifted: {sorted(jobs)}")
+    average_error = sum(errors) / len(errors) if errors else 0.0
+    if average_error > MAX_SPECIAL_AVERAGE_ERROR_PERCENT:
+        problems.append(
+            f"special sample average error {average_error:.3f}% exceeds "
+            f"{MAX_SPECIAL_AVERAGE_ERROR_PERCENT}%"
+        )
+
+    if problems:
+        raise AssertionError("\n".join(problems))
+
+
 def main() -> None:
     calibration = read_json(ROOT / "calibration-results.json")
     rankings = read_json(ROOT / "calibration-rankings.json")
+    special_samples = read_json(ROOT / "special-job-samples.json")
     if calibration is None or rankings is None:
         print("SKIP: local calibration JSON files are not present")
         return
 
     assert_calibration_results(calibration)
     assert_ranking_samples(rankings)
+    if special_samples is not None:
+        assert_special_job_samples(special_samples)
     print(f"OK: calibration tables match {len(KMS_JOB_NAMES)} KMS jobs")
 
 

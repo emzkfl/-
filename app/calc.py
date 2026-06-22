@@ -353,7 +353,7 @@ SPECIAL_DETAIL_HYBRID_MODELS = [
     {
         "keywords": ("제논",),
         "model": "job_special_detail_hybrid_xenon",
-        "coefficients": (11.072575103615529, 0.04893282860182904, 0.005844120240517684),
+        "coefficients": (11.152313062228588, 0.023871647888818334, 0.015625817240356134),
     },
 ]
 

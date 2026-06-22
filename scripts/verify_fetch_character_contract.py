@@ -59,6 +59,37 @@ def with_fake_nexon(
         nexon._CACHE.clear()  # pylint: disable=protected-access
 
 
+def assert_parameter_normalization() -> None:
+    original_default_date = nexon.default_date
+    failures: list[str] = []
+    try:
+        nexon.default_date = lambda: "2026-06-21"  # type: ignore[assignment]
+
+        if nexon.normalize_character_name("  레 테\u3000샘플\n") != "레테샘플":
+            failures.append("nickname whitespace was not normalized")
+        if nexon.normalize_lookup_date(None) != "2026-06-21":
+            failures.append("missing date did not fall back to default date")
+        if nexon.normalize_lookup_date("") != "2026-06-21":
+            failures.append("empty date did not fall back to default date")
+        if nexon.normalize_lookup_date("2026-06-20") != "2026-06-20":
+            failures.append("valid historical date changed unexpectedly")
+
+        invalid_dates = ("2026/06/21", "2026-06-22")
+        for value in invalid_dates:
+            try:
+                nexon.normalize_lookup_date(value)
+            except nexon.NexonApiError as exc:
+                if "조회일" not in str(exc):
+                    failures.append(f"{value}: error message does not explain lookup date: {exc}")
+            else:
+                failures.append(f"{value}: invalid date was accepted")
+    finally:
+        nexon.default_date = original_default_date  # type: ignore[assignment]
+
+    if failures:
+        raise AssertionError("\n".join(failures))
+
+
 def assert_required_failures_raise() -> None:
     failures: list[str] = []
     for section in API_REQUIRED_SECTIONS:
@@ -121,6 +152,7 @@ def assert_optional_failures_return_diagnostic_view() -> None:
 
 
 def main() -> None:
+    assert_parameter_normalization()
     assert_required_failures_raise()
     assert_optional_failures_return_diagnostic_view()
     print("OK: fetch_character required/optional API failure contract verified")

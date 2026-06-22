@@ -57,6 +57,27 @@ def default_date() -> str:
     return (datetime.now(kst) - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
+def normalize_character_name(character_name: str) -> str:
+    name = "".join(str(character_name or "").replace("\u3000", " ").split())
+    if not name:
+        raise NexonApiError("닉네임을 입력해주세요.")
+    return name
+
+
+def normalize_lookup_date(date: str | None = None) -> str:
+    text = str(date or "").strip() or default_date()
+    try:
+        parsed = datetime.strptime(text, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise NexonApiError("조회일은 YYYY-MM-DD 형식으로 입력해주세요.") from exc
+
+    max_text = default_date()
+    max_date = datetime.strptime(max_text, "%Y-%m-%d").date()
+    if parsed > max_date:
+        raise NexonApiError(f"조회일은 오늘 이전 날짜만 가능합니다. {max_text} 이하로 선택해주세요.")
+    return parsed.isoformat()
+
+
 def is_transient_error(status: int | None, message: str) -> bool:
     normalized = message.lower()
     return status in TRANSIENT_STATUS_CODES or any(
@@ -65,6 +86,11 @@ def is_transient_error(status: int | None, message: str) -> bool:
 
 
 def explain_api_error(message: str) -> str:
+    if "please input valid parameter" in message.lower():
+        return (
+            "요청 파라미터가 유효하지 않습니다. 닉네임과 조회일을 확인해주세요. "
+            "조회일은 오늘 이전 날짜만 가능합니다."
+        )
     if "please try again later" in message.lower():
         return (
             "Nexon API가 요청 제한 또는 혼잡 상태입니다. "
@@ -131,11 +157,8 @@ SKILL_GRADES = ("5", "6")
 
 
 def fetch_character(character_name: str, date: str | None = None) -> dict[str, Any]:
-    name = character_name.strip()
-    if not name:
-        raise NexonApiError("닉네임을 입력해주세요.")
-
-    target_date = date or default_date()
+    name = normalize_character_name(character_name)
+    target_date = normalize_lookup_date(date)
     cache_key = (name.casefold(), target_date)
     with _CACHE_LOCK:
         cached = _CACHE.get(cache_key)

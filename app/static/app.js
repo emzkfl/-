@@ -99,16 +99,25 @@ async function readJson(response) {
 function defaultDate() {
   const date = new Date();
   date.setDate(date.getDate() - 1);
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function setLookupDate(value) {
+  const lookupDate = value || defaultDate();
+  dateInput.value = lookupDate;
+  dateInput.max = lookupDate;
 }
 
 async function loadHealth() {
   try {
     const response = await fetch("/api/health");
     const body = await readJson(response);
-    dateInput.value = body.defaultDate || defaultDate();
+    setLookupDate(body.defaultDate || defaultDate());
   } catch {
-    dateInput.value = defaultDate();
+    setLookupDate(defaultDate());
   }
 }
 
@@ -812,7 +821,13 @@ form.addEventListener("submit", (event) => {
     return;
   }
   if (searchButton.disabled) return;
-  search(name, dateInput.value).catch((error) => {
+  const lookupDate = dateInput.value || dateInput.max || defaultDate();
+  if (dateInput.max && lookupDate > dateInput.max) {
+    dateInput.value = dateInput.max;
+    setStatus(`조회일은 ${dateInput.max} 이하로 선택해주세요`, "error");
+    return;
+  }
+  search(name, lookupDate).catch((error) => {
     setStatus(error.message, "error");
   });
 });

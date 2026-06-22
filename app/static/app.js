@@ -533,11 +533,15 @@ function renderUpgradePlan(data) {
 
   upgradeList.innerHTML = rows
     .map((row, index) => {
+      const evidence = row.recommendationEvidence || {};
+      const evidenceText = evidence.weaknessLabel
+        ? `${evidence.weaknessLabel} ${formatNumber(evidence.weaknessGap || 0, 1)}${evidence.weaknessUnit || ""} 부족 · 기여가중 +${formatNumber(evidence.weightedContribution || 0)}`
+        : `기여가중 +${formatNumber(evidence.weightedContribution || 0)}`;
       const scenarios = (row.scenarios || [])
         .map((scenario) => `<em>${escapeHtml(scenario.type)} · ${escapeHtml(scenario.action)} · +${formatNumber(scenario.gain)} (${formatNumber(scenario.gainPercent || 0, 2)}%)</em>`)
         .join("");
       const weaknesses = (row.weaknesses || [])
-        .map((weakness) => `<em>${escapeHtml(weakness.label)} ${formatNumber(weakness.current, 1)}${escapeHtml(weakness.unit || "")}/${formatNumber(weakness.target, 1)}${escapeHtml(weakness.unit || "")}</em>`)
+        .map((weakness) => `<em>${escapeHtml(weakness.label)} ${formatNumber(weakness.current, 1)}${escapeHtml(weakness.unit || "")}/${formatNumber(weakness.target, 1)}${escapeHtml(weakness.unit || "")} · 부족 ${formatNumber(weakness.gap || 0, 1)}${escapeHtml(weakness.unit || "")}</em>`)
         .join("");
       return `<article class="upgrade-card">
         <div class="upgrade-rank">${index + 1}</div>
@@ -555,6 +559,7 @@ function renderUpgradePlan(data) {
             <span>예상 +${formatNumber(row.expectedGain)} (${formatNumber(row.expectedGainPercent || 0, 2)}%)</span>
             <span>현재 기여 ${formatNumber(row.contribution)}</span>
             <span>우선 ${formatNumber(row.priorityScore)}</span>
+            <span>${escapeHtml(evidenceText)}</span>
           </div>
           <div class="upgrade-weaknesses">${weaknesses}</div>
           <div class="upgrade-scenarios">${scenarios}</div>

@@ -117,6 +117,52 @@ def formula_manifest_failures(manifest: dict, context: str, expected_job: str | 
     return failures
 
 
+def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
+    failures: list[str] = []
+    rows = plan.get("top") or []
+    summary = plan.get("repairEvidence") or {}
+
+    if not summary:
+        failures.append(f"{context}: repair evidence summary missing")
+    elif summary.get("basis") != plan.get("basis"):
+        failures.append(f"{context}: repair evidence basis mismatch")
+    elif summary.get("metric") != "unifiedConverted380":
+        failures.append(f"{context}: repair evidence metric mismatch")
+    elif summary.get("candidateCount") != len(plan.get("all") or rows):
+        failures.append(f"{context}: repair evidence candidate count mismatch")
+
+    for row in rows:
+        evidence = row.get("recommendationEvidence") or {}
+        if not evidence:
+            failures.append(f"{context}/{row.get('name')}: recommendation evidence missing")
+            continue
+        if evidence.get("basis") != plan.get("basis"):
+            failures.append(f"{context}/{row.get('name')}: evidence basis mismatch")
+        if evidence.get("metric") != "unifiedConverted380":
+            failures.append(f"{context}/{row.get('name')}: evidence metric mismatch")
+        if evidence.get("priorityFormula") != "expectedGain + contribution * 0.05":
+            failures.append(f"{context}/{row.get('name')}: priority formula mismatch")
+        if evidence.get("expectedGain") != row.get("expectedGain"):
+            failures.append(f"{context}/{row.get('name')}: evidence expected gain mismatch")
+        if evidence.get("contribution") != row.get("contribution"):
+            failures.append(f"{context}/{row.get('name')}: evidence contribution mismatch")
+        if evidence.get("priorityScore") != row.get("priorityScore"):
+            failures.append(f"{context}/{row.get('name')}: evidence priority score mismatch")
+        if row.get("weaknesses"):
+            weakness = row["weaknesses"][0]
+            if evidence.get("weaknessLabel") != weakness.get("label"):
+                failures.append(f"{context}/{row.get('name')}: evidence weakness label mismatch")
+            if evidence.get("weaknessGap") != weakness.get("gap"):
+                failures.append(f"{context}/{row.get('name')}: evidence weakness gap mismatch")
+
+    if rows and summary.get("top", {}).get("item") != rows[0].get("name"):
+        failures.append(f"{context}: repair evidence top item mismatch")
+    for checklist_row in plan.get("repairChecklist") or []:
+        if not checklist_row.get("recommendationEvidence"):
+            failures.append(f"{context}: checklist recommendation evidence missing")
+    return failures
+
+
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
@@ -259,6 +305,7 @@ def assert_full_job_view_models() -> None:
             failures.append(f"{job}: item plan basis mismatch")
         if plan["currentConverted"] != summary["unifiedConverted380"]:
             failures.append(f"{job}: item plan current score mismatch")
+        failures.extend(recommendation_evidence_failures(plan, job))
         if not plan["top"]:
             failures.append(f"{job}: no item repair recommendations")
         for row in plan.get("top") or []:
@@ -435,6 +482,8 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["top"]
     assert view["itemUpgradePlan"]["top"][0]["priorityScore"] > 0
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
+    assert not recommendation_evidence_failures(view["itemUpgradePlan"], "sample 레테")
+    assert view["itemUpgradePlan"]["repairEvidence"]["top"]["item"] == view["itemUpgradePlan"]["top"][0]["name"]
     assert view["itemUpgradePlan"]["top"][0]["scoreBasis"] == view["itemUpgradePlan"]["basis"]
     assert view["itemUpgradePlan"]["top"][0]["expectedGain"] == view["itemUpgradePlan"]["top"][0]["scenarios"][0]["gain"]
     assert view["itemUpgradePlan"]["top"][0]["scenarios"][0]["gainPercent"] > 0
@@ -580,12 +629,14 @@ def assert_preset_metric_basis() -> None:
         "isCurrent": True,
     }
     assert current_plan["plan"]["slotSummary"]
+    assert not recommendation_evidence_failures(current_plan["plan"], "current preset 레테")
     second_plan = next(row for row in view["presetUpgradePlans"] if row["itemPreset"] == 2)
     assert second_plan["plan"]["presetSelection"]["itemPreset"] == 2
     assert second_plan["plan"]["presetSelection"]["abilityPreset"] == second_plan["abilityPreset"]
     assert second_plan["plan"]["presetSelection"]["hyperPreset"] == second_plan["hyperPreset"]
     assert second_plan["plan"]["reliability"]["score"] == view["primaryMetric"]["confidence"]["score"]
     assert second_plan["plan"]["slotSummary"]
+    assert not recommendation_evidence_failures(second_plan["plan"], "second preset 레테")
 
 
 def assert_api_warning_diagnostics() -> None:

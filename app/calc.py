@@ -2365,10 +2365,68 @@ def build_repair_checklist(rows: list[dict[str, Any]], limit: int = 5) -> list[d
                 "expectedGainPercent": row.get("expectedGainPercent") or 0,
                 "priorityScore": row.get("priorityScore") or 0,
                 "weakness": weakness,
+                "recommendationEvidence": row.get("recommendationEvidence") or {},
                 "currentState": row.get("currentState") or "",
             }
         )
     return checklist
+
+
+def build_recommendation_evidence(
+    item: dict[str, Any],
+    basis: str,
+    best: dict[str, Any],
+    contribution: float,
+    priority_score: int,
+    weaknesses: list[dict[str, Any]],
+) -> dict[str, Any]:
+    primary_weakness = weaknesses[0] if weaknesses else {}
+    weighted_contribution = contribution * 0.05
+    return {
+        "metric": "unifiedConverted380",
+        "basis": basis,
+        "source": "nexon_item_equipment_options",
+        "priorityFormula": "expectedGain + contribution * 0.05",
+        "expectedGain": round(float(best.get("gain") or 0.0)),
+        "contribution": round(contribution),
+        "contributionWeight": 0.05,
+        "weightedContribution": round(weighted_contribution),
+        "priorityScore": priority_score,
+        "item": item.get("item_name") or "-",
+        "slot": item.get("item_equipment_slot") or item.get("item_equipment_part") or "-",
+        "recommendedType": best.get("type") or "",
+        "recommendedAction": best.get("action") or "",
+        "reason": best.get("reason") or "",
+        "weaknessLabel": primary_weakness.get("label") or "",
+        "weaknessCurrent": primary_weakness.get("current") or 0,
+        "weaknessTarget": primary_weakness.get("target") or 0,
+        "weaknessGap": primary_weakness.get("gap") or 0,
+        "weaknessUnit": primary_weakness.get("unit") or "",
+        "weaknessScore": primary_weakness.get("score") or 0,
+    }
+
+
+def build_repair_evidence_summary(
+    rows: list[dict[str, Any]],
+    basis: str,
+    main_stat: str,
+    attack_type: str,
+    stat_targets: list[str],
+) -> dict[str, Any]:
+    top = rows[0] if rows else {}
+    evidence = top.get("recommendationEvidence") or {}
+    return {
+        "metric": "unifiedConverted380",
+        "basis": basis,
+        "priorityFormula": "expectedGain + contribution * 0.05",
+        "targetProfile": {
+            "mainStat": main_stat,
+            "attackType": attack_type,
+            "upgradeTargets": stat_targets,
+        },
+        "top": evidence,
+        "candidateCount": len(rows),
+    }
 
 
 def build_upgrade_efficiency_profile(
@@ -2545,6 +2603,15 @@ def build_item_upgrade_plan(
         potential_summary = " / ".join(potential_lines(item)) or "잠재 없음"
         additional_summary = " / ".join(potential_lines(item, additional=True)) or "에디 없음"
         weaknesses = item_weakness_breakdown(item, character_class, main_stat, attack_type)
+        priority_score = round(best["gain"] + contribution * 0.05)
+        recommendation_evidence = build_recommendation_evidence(
+            item,
+            basis,
+            best,
+            contribution,
+            priority_score,
+            weaknesses,
+        )
         rows.append(
             {
                 "slot": item.get("item_equipment_slot") or item.get("item_equipment_part") or "-",
@@ -2566,7 +2633,8 @@ def build_item_upgrade_plan(
                 "expectedGain": round(best["gain"]),
                 "expectedGainPercent": round(best["gain"] / current_converted * 100, 2) if current_converted else 0.0,
                 "contribution": round(contribution),
-                "priorityScore": round(best["gain"] + contribution * 0.05),
+                "priorityScore": priority_score,
+                "recommendationEvidence": recommendation_evidence,
                 "scenarios": [
                     {
                         "type": scenario["type"],
@@ -2585,6 +2653,7 @@ def build_item_upgrade_plan(
     category_summary = build_upgrade_category_summary(rows)
     slot_summary = build_upgrade_slot_summary(rows)
     repair_checklist = build_repair_checklist(rows)
+    repair_evidence = build_repair_evidence_summary(rows, basis, main_stat, attack_type, stat_targets)
     efficiency_profile = build_upgrade_efficiency_profile(
         stats,
         item_response,
@@ -2608,6 +2677,7 @@ def build_item_upgrade_plan(
         "primaryEfficiency": efficiency_profile[0] if efficiency_profile else None,
         "slotSummary": slot_summary,
         "primarySlot": slot_summary[0] if slot_summary else None,
+        "repairEvidence": repair_evidence,
         "repairFocus": {
             "slot": (slot_summary[0] or {}).get("slot") if slot_summary else "",
             "category": (category_summary[0] or {}).get("type") if category_summary else "",

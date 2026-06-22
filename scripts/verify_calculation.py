@@ -146,6 +146,13 @@ def assert_sample_view_model() -> None:
     }
     view = build_view_model(raw)
     coverage = view["calculationCoverage"]
+    api_quality = view["apiDataQuality"]
+    assert api_quality["requiredPresent"] == 3
+    assert api_quality["requiredTotal"] == 3
+    assert api_quality["missingRequiredSections"] == []
+    assert api_quality["warningCount"] == 0
+    assert view["summary"]["apiQualityPercent"] == api_quality["qualityPercent"]
+    assert view["summary"]["apiWarningCount"] == api_quality["warningCount"]
     assert coverage["targetJobs"] >= 48
     assert coverage["current"]["job"] == "레테"
     assert view["summary"]["mainStat"] == "INT"
@@ -266,6 +273,7 @@ def assert_preset_metric_basis() -> None:
     assert view["presetOptimization"]["current"]["converted"] == view["summary"]["unifiedConverted380"]
     current_combo = next(row for row in view["presetViews"]["combinations"] if row["itemPreset"] == 1)
     assert current_combo["converted"] == view["summary"]["unifiedConverted380"]
+    assert view["apiDataQuality"]["presetSections"]["itemPresetCount"] >= 2
     assert view["presetUpgradePlans"]
     assert len(view["presetUpgradePlans"]) >= 2
     current_plan = next(row for row in view["presetUpgradePlans"] if row["isCurrent"])

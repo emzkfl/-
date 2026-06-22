@@ -113,6 +113,42 @@ HEXA_SKILL_EFFECT_PER_LEVEL = 0.00035
 HEXA_SKILL_EFFECT_CAP = 0.2
 HEXA_COMPLETION_LEVEL_CAP = 780
 HEXA_INCOMPLETE_BASE_RATIO = 0.835
+API_REQUIRED_SECTIONS = ("basic", "stat", "itemEquipment")
+API_OPTIONAL_SECTIONS = (
+    "symbol",
+    "ability",
+    "setEffect",
+    "hyperStat",
+    "hexamatrixStat",
+    "union",
+    "petEquipment",
+    "linkSkill",
+    "vmatrix",
+    "hexamatrix",
+    "ringExchangeSkillEquipment",
+    "ringReserveSkillEquipment",
+    "skill5",
+    "skill6",
+)
+API_SECTION_LABELS = {
+    "basic": "기본 정보",
+    "stat": "종합 능력치",
+    "itemEquipment": "장착 장비",
+    "symbol": "심볼",
+    "ability": "어빌리티",
+    "setEffect": "세트 효과",
+    "hyperStat": "하이퍼스탯",
+    "hexamatrixStat": "HEXA 스탯",
+    "union": "유니온",
+    "petEquipment": "펫 장비",
+    "linkSkill": "링크 스킬",
+    "vmatrix": "V매트릭스",
+    "hexamatrix": "HEXA 코어",
+    "ringExchangeSkillEquipment": "링 익스체인지",
+    "ringReserveSkillEquipment": "예비 특수 반지",
+    "skill5": "5차 스킬",
+    "skill6": "6차 스킬",
+}
 
 JOB_CONVERTED_MULTIPLIERS = [
     {"keywords": ("나이트로드", "나로"), "multiplier": 0.732874},
@@ -2546,6 +2582,101 @@ def summarize_extra(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def api_section_fetched(raw: dict[str, Any], key: str) -> bool:
+    return key in raw and isinstance(raw.get(key), (dict, list))
+
+
+def api_payload_count(value: Any) -> int:
+    if isinstance(value, list):
+        return sum(1 for row in value if row not in (None, "", {}, []))
+    if isinstance(value, dict):
+        total = 0
+        for child in value.values():
+            if isinstance(child, (dict, list)):
+                total += api_payload_count(child)
+            elif child not in (None, ""):
+                total += 1
+        return total
+    return 1 if value not in (None, "") else 0
+
+
+def api_section_has_payload(raw: dict[str, Any], key: str) -> bool:
+    if not api_section_fetched(raw, key):
+        return False
+    return api_payload_count(raw.get(key)) > 0
+
+
+def api_section_rows(raw: dict[str, Any], keys: tuple[str, ...]) -> list[dict[str, Any]]:
+    rows = []
+    for key in keys:
+        rows.append(
+            {
+                "key": key,
+                "label": API_SECTION_LABELS.get(key, key),
+                "fetched": api_section_fetched(raw, key),
+                "hasData": api_section_has_payload(raw, key),
+                "payloadCount": api_payload_count(raw.get(key)),
+            }
+        )
+    return rows
+
+
+def api_data_quality(raw: dict[str, Any]) -> dict[str, Any]:
+    warnings = [row for row in raw.get("warnings") or [] if isinstance(row, dict)]
+    warning_sections = {str(row.get("section") or "") for row in warnings}
+    required_rows = api_section_rows(raw, API_REQUIRED_SECTIONS)
+    optional_rows = api_section_rows(raw, API_OPTIONAL_SECTIONS)
+    missing_required = [row for row in required_rows if not row["fetched"]]
+    missing_optional = [row for row in optional_rows if not row["fetched"]]
+    empty_optional = [row for row in optional_rows if row["fetched"] and not row["hasData"]]
+    required_fetched = len(required_rows) - len(missing_required)
+    optional_fetched = len(optional_rows) - len(missing_optional)
+    total_sections = len(required_rows) + len(optional_rows)
+    fetched_sections = required_fetched + optional_fetched
+
+    item_response = raw.get("itemEquipment") or {}
+    ability_response = raw.get("ability") or {}
+    hyper_response = raw.get("hyperStat") or {}
+    item_presets = available_item_presets(item_response)
+    ability_presets = available_ability_presets(ability_response)
+    hyper_presets = available_hyper_presets(hyper_response)
+    item_preset_count = len(item_presets) or (1 if pick_list(item_response, "item_equipment") else 0)
+    ability_preset_count = len(ability_presets) or (1 if pick_list(ability_response, "ability_info") else 0)
+
+    if missing_required:
+        status = "error"
+    elif warnings:
+        status = "warning"
+    elif missing_optional:
+        status = "partial"
+    else:
+        status = "complete"
+
+    return {
+        "status": status,
+        "qualityPercent": round(fetched_sections / total_sections * 100, 1) if total_sections else 0,
+        "requiredPresent": required_fetched,
+        "requiredTotal": len(required_rows),
+        "optionalPresent": optional_fetched,
+        "optionalTotal": len(optional_rows),
+        "required": required_rows,
+        "optional": optional_rows,
+        "presentSections": [row["key"] for row in required_rows + optional_rows if row["fetched"]],
+        "missingRequiredSections": [row["key"] for row in missing_required],
+        "missingOptionalSections": [row["key"] for row in missing_optional],
+        "emptyOptionalSections": [row["key"] for row in empty_optional],
+        "warningCount": len(warnings),
+        "warningSections": sorted(section for section in warning_sections if section),
+        "warnings": warnings[:8],
+        "hexaAvailable": api_section_has_payload(raw, "hexamatrix") or api_section_has_payload(raw, "hexamatrixStat"),
+        "presetSections": {
+            "itemPresetCount": item_preset_count,
+            "abilityPresetCount": ability_preset_count,
+            "hyperPresetCount": len(hyper_presets),
+        },
+    }
+
+
 def radar(stats: dict[str, float], converted: dict[str, Any]) -> dict[str, float]:
     formula = converted["damageFormula"]
     return {
@@ -2610,6 +2741,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     )
 
     union = raw.get("union") or {}
+    api_quality = api_data_quality(raw)
     return {
         "date": raw.get("date"),
         "basic": basic,
@@ -2642,12 +2774,15 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
             "convertedModel": converted["convertedModel"],
             "legacyConverted380": round(converted["legacyConverted"]),
             "jobNote": converted["jobNote"],
+            "apiQualityPercent": api_quality["qualityPercent"],
+            "apiWarningCount": api_quality["warningCount"],
         },
         "convertedDetail": converted,
         "hexaConvertedDetail": hexa_converted,
         "presetOptimization": preset_optimization,
         "presetViews": preset_views,
         "presetUpgradePlans": preset_upgrade_plans,
+        "apiDataQuality": api_quality,
         "calculationCoverage": coverage,
         "calculationAudit": calculation_audit,
         "itemUpgradePlan": item_upgrade_plan,

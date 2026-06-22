@@ -374,6 +374,8 @@ function renderExtra(data) {
 function renderCoverage(data) {
   const coverage = data.calculationCoverage || {};
   const audit = data.calculationAudit || {};
+  const quality = data.apiDataQuality || {};
+  const presetQuality = quality.presetSections || {};
   const current = coverage.current || {};
   const total = coverage.targetJobs || 0;
   const missing = [
@@ -381,7 +383,29 @@ function renderCoverage(data) {
     ...(coverage.missingMultiplierJobs || []),
     ...(coverage.missingCombatJobs || []),
   ];
+  const apiStatus = {
+    complete: "완전",
+    partial: "선택 API 일부 누락",
+    warning: "경고 있음",
+    error: "필수 API 누락",
+  }[quality.status] || "-";
+  const warningPreview = (quality.warnings || [])
+    .map((row) => `${row.section || "-"}: ${row.message || ""}`)
+    .slice(0, 2)
+    .join(" · ");
+  const optionalMissingPreview = (quality.missingOptionalSections || []).slice(0, 4).join(" · ");
   const coverageRows = [
+    coverageRow(
+      "API 데이터",
+      `${formatNumber(quality.requiredPresent || 0)} / ${formatNumber(quality.requiredTotal || 0)} 필수 · ${formatNumber(quality.optionalPresent || 0)} / ${formatNumber(quality.optionalTotal || 0)} 선택`,
+      `${formatNumber(quality.qualityPercent || 0, 1)}% · ${apiStatus}${optionalMissingPreview ? ` · 누락 ${optionalMissingPreview}` : ""}`,
+    ),
+    coverageRow("API 경고", `${formatNumber(quality.warningCount || 0)}개`, warningPreview || "없음"),
+    coverageRow(
+      "프리셋 API",
+      `장비 ${formatNumber(presetQuality.itemPresetCount || 0)} · 어빌 ${formatNumber(presetQuality.abilityPresetCount || 0)} · 하이퍼 ${formatNumber(presetQuality.hyperPresetCount || 0)}`,
+      quality.hexaAvailable ? "HEXA 데이터 수집됨" : "HEXA 데이터 없음 또는 미공개",
+    ),
     coverageRow("KMS 상세식", `${formatNumber(coverage.coveredDetailJobs || 0)} / ${formatNumber(total)}`, "레테 포함 직업별 주스탯·무기상수 적용"),
     coverageRow("환산 보정", `${formatNumber(coverage.coveredMultiplierJobs || 0)} / ${formatNumber(total)}`, "원사이트 샘플 기반 직업별 배율"),
     coverageRow("전투력 모델", `${formatNumber(coverage.coveredCombatJobs || 0)} / ${formatNumber(total)}`, "특수 직업은 별도 모델 포함"),

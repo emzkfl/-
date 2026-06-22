@@ -2320,6 +2320,7 @@ def build_goal_contract(
             "label": "아이템 개선 판단",
             "passed": bool(repair_audit.get("allPassed"))
             and bool(item_upgrade_plan.get("repairChecklist"))
+            and bool(item_upgrade_plan.get("repairDecisionMatrix"))
             and bool(repair_focus.get("slot") or repair_focus.get("description")),
             "detail": f"{repair_focus.get('slot') or '-'} · {repair_focus.get('description') or '-'}",
         },
@@ -2366,6 +2367,7 @@ def build_goal_contract(
             "repairMetric": "itemUpgradePlan.currentConverted",
             "repairFocus": "itemUpgradePlan.repairFocus",
             "repairChecklist": "itemUpgradePlan.repairChecklist",
+            "repairDecisionMatrix": "itemUpgradePlan.repairDecisionMatrix",
         },
         "checks": checks,
         "failedCheckIds": [row["id"] for row in checks if not row["passed"]],
@@ -2424,6 +2426,7 @@ def build_unified_repair_audit(
             "label": "아이템 개선 대상",
             "passed": bool(repair_audit.get("allPassed"))
             and bool(top_repair.get("name"))
+            and bool(item_upgrade_plan.get("repairDecisionMatrix"))
             and int_number(items.get("repairTargetCount")) > 0,
             "detail": f"{top_repair.get('slot') or '-'} · {top_repair.get('name') or '-'} · +{int_number(top_repair.get('expectedGain')):,}",
         },
@@ -2464,6 +2467,7 @@ def build_unified_repair_audit(
             "singleMetric": "singleMetricAudit",
             "bossJudgment": "bossBoardAudit",
             "itemRepair": "itemUpgradePlan.top[0]",
+            "repairDecisionMatrix": "itemUpgradePlan.repairDecisionMatrix",
             "repairRoadmap": "itemUpgradePlan.roadmapSummary",
         },
         "repairSummary": {
@@ -2979,6 +2983,57 @@ def build_upgrade_slot_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any
             }
         )
     return sorted(result, key=lambda row: (row["priorityScore"], row["totalGain"], row["bestGain"]), reverse=True)
+
+
+def build_repair_decision_matrix(
+    rows: list[dict[str, Any]],
+    slot_summary: list[dict[str, Any]],
+    limit: int = 8,
+) -> list[dict[str, Any]]:
+    best_by_slot: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        slot = str(row.get("slot") or row.get("part") or "")
+        if not slot:
+            continue
+        current = best_by_slot.get(slot)
+        if current is None or (
+            float(row.get("priorityScore") or 0.0),
+            float(row.get("expectedGain") or 0.0),
+        ) > (
+            float(current.get("priorityScore") or 0.0),
+            float(current.get("expectedGain") or 0.0),
+        ):
+            best_by_slot[slot] = row
+
+    matrix = []
+    for rank, slot in enumerate(slot_summary[:limit], 1):
+        source = best_by_slot.get(str(slot.get("slot") or "")) or {}
+        weakness = (source.get("weaknesses") or [{}])[0]
+        boss_impact = source.get("bossImpact") or {}
+        matrix.append(
+            {
+                "rank": rank,
+                "decision": "fix_first" if rank == 1 else "queue",
+                "sourcePath": "itemUpgradePlan.all",
+                "metric": source.get("metric") or "unifiedConverted380",
+                "metricBefore": int_number(source.get("metricBefore")),
+                "metricAfter": int_number(source.get("metricAfter")),
+                "slot": slot.get("slot") or source.get("slot") or "",
+                "item": source.get("name") or slot.get("bestItem") or "",
+                "recommendedType": source.get("recommendedType") or slot.get("bestType") or "",
+                "recommendedAction": source.get("recommendedAction") or slot.get("bestAction") or "",
+                "expectedGain": int_number(source.get("expectedGain"), int_number(slot.get("bestGain"))),
+                "expectedGainPercent": source.get("expectedGainPercent") or 0,
+                "slotTotalGain": int_number(slot.get("totalGain")),
+                "slotSharePercent": slot.get("sharePercent") or 0,
+                "slotCandidateCount": int_number(slot.get("candidateCount")),
+                "priorityScore": int_number(source.get("priorityScore"), int_number(slot.get("priorityScore"))),
+                "reason": source.get("reason") or "",
+                "weaknessLabel": weakness.get("label") or slot.get("topWeakness") or "",
+                "bossImpact": boss_impact,
+            }
+        )
+    return matrix
 
 
 def build_weakness_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -3546,6 +3601,7 @@ def build_item_upgrade_plan(
     rows.sort(key=lambda row: (row["priorityScore"], row["expectedGain"], -row["contribution"]), reverse=True)
     category_summary = build_upgrade_category_summary(rows)
     slot_summary = build_upgrade_slot_summary(rows)
+    repair_decision_matrix = build_repair_decision_matrix(rows, slot_summary)
     weakness_summary = build_weakness_summary(rows)
     repair_checklist = build_repair_checklist(rows)
     repair_roadmap = build_repair_roadmap(rows, current_converted, basis)
@@ -3577,6 +3633,7 @@ def build_item_upgrade_plan(
         "primaryEfficiency": efficiency_profile[0] if efficiency_profile else None,
         "slotSummary": slot_summary,
         "primarySlot": slot_summary[0] if slot_summary else None,
+        "repairDecisionMatrix": repair_decision_matrix,
         "repairEvidence": repair_evidence,
         "repairAudit": repair_audit,
         "repairFocus": {

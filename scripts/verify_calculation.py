@@ -176,6 +176,7 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     summary = plan.get("repairEvidence") or {}
     audit = plan.get("repairAudit") or {}
     weakness_summary = plan.get("weaknessSummary") or []
+    decision_matrix = plan.get("repairDecisionMatrix") or []
     roadmap = plan.get("repairRoadmap") or []
     roadmap_summary = plan.get("roadmapSummary") or {}
 
@@ -256,6 +257,48 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     summary_labels = {row.get("label") for row in weakness_summary}
     if rows and not weakness_summary:
         failures.append(f"{context}: weakness summary missing")
+    if rows and not decision_matrix:
+        failures.append(f"{context}: repair decision matrix missing")
+    if decision_matrix:
+        if len(decision_matrix) != min(len(plan.get("slotSummary") or []), 8):
+            failures.append(f"{context}: repair decision matrix length mismatch")
+        first_decision = decision_matrix[0]
+        first_slot = (plan.get("slotSummary") or [{}])[0]
+        first_row = next(
+            (
+                row
+                for row in rows
+                if (row.get("slot") or row.get("part") or "") == first_slot.get("slot")
+            ),
+            rows[0] if rows else {},
+        )
+        if first_decision.get("rank") != 1:
+            failures.append(f"{context}: first decision rank mismatch")
+        if first_decision.get("decision") != "fix_first":
+            failures.append(f"{context}: first decision flag mismatch")
+        if first_decision.get("metric") != "unifiedConverted380":
+            failures.append(f"{context}: decision metric mismatch")
+        if first_decision.get("slot") != first_slot.get("slot"):
+            failures.append(f"{context}: decision slot does not match primary slot")
+        if first_decision.get("item") != first_row.get("name"):
+            failures.append(f"{context}: decision item does not match top repair row")
+        if first_decision.get("expectedGain") != first_row.get("expectedGain"):
+            failures.append(f"{context}: decision gain does not match top repair row")
+        if first_decision.get("metricBefore") != plan.get("currentConverted"):
+            failures.append(f"{context}: decision metric before mismatch")
+        if first_decision.get("metricAfter") != first_row.get("metricAfter"):
+            failures.append(f"{context}: decision metric after mismatch")
+        if (first_decision.get("bossImpact") or {}).get("label") != (first_row.get("bossImpact") or {}).get("label"):
+            failures.append(f"{context}: decision boss impact mismatch")
+        for index, decision in enumerate(decision_matrix, 1):
+            if decision.get("rank") != index:
+                failures.append(f"{context}: decision rank sequence mismatch {decision}")
+            if not decision.get("slot") or not decision.get("item"):
+                failures.append(f"{context}: decision missing slot/item {decision}")
+            if int(decision.get("expectedGain") or 0) <= 0:
+                failures.append(f"{context}: decision expected gain missing {decision}")
+            if not (decision.get("bossImpact") or {}).get("label"):
+                failures.append(f"{context}: decision boss impact label missing {decision}")
     if not summary_labels.issubset(weakness_labels):
         failures.append(f"{context}: weakness summary has unknown labels {sorted(summary_labels - weakness_labels)}")
     for row in weakness_summary:
@@ -578,6 +621,7 @@ def unified_repair_audit_failures(view: dict, context: str) -> list[str]:
         "singleMetric": "singleMetricAudit",
         "bossJudgment": "bossBoardAudit",
         "itemRepair": "itemUpgradePlan.top[0]",
+        "repairDecisionMatrix": "itemUpgradePlan.repairDecisionMatrix",
         "repairRoadmap": "itemUpgradePlan.roadmapSummary",
     }
     if audit.get("fieldPaths") != expected_paths:

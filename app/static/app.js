@@ -544,6 +544,7 @@ function renderUpgradePlan(data) {
   const roadmap = plan.repairRoadmap || [];
   const roadmapSummary = plan.roadmapSummary || {};
   const roadmapBossImpact = roadmapSummary.bossImpact || {};
+  const decisionMatrix = plan.repairDecisionMatrix || [];
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
   const efficiencyText = efficiency.action ? ` · 효율 ${efficiency.action} +${formatNumber(efficiency.gain || 0)}` : "";
   const reliabilityText = reliability.label ? ` · 추천 ${reliability.label}` : "";
@@ -583,6 +584,15 @@ function renderUpgradePlan(data) {
       ${roadmapBossImpact.label ? `<em>보스 영향 ${escapeHtml(roadmapBossImpact.label)}</em>` : ""}
     </article>`
     : "";
+  const decisionCards = decisionMatrix
+    .slice(0, 3)
+    .map((decision) => `<article class="upgrade-slot priority">
+      <span>${formatNumber(decision.rank || 0)}순위 · ${escapeHtml(decision.slot || "-")}</span>
+      <strong>+${formatNumber(decision.expectedGain || 0)}</strong>
+      <small>${escapeHtml(decision.recommendedType || "-")} · ${escapeHtml(decision.recommendedAction || "-")}</small>
+      <em>${escapeHtml(decision.item || "-")}${decision.weaknessLabel ? ` · ${escapeHtml(decision.weaknessLabel)}` : ""}${decision.bossImpact?.label ? ` · 보스 영향 ${escapeHtml(decision.bossImpact.label)}` : ""}</em>
+    </article>`)
+    .join("");
   const slotCards = (plan.slotSummary || [])
     .slice(0, 4)
     .map((slot) => `<article class="upgrade-slot">
@@ -592,7 +602,7 @@ function renderUpgradePlan(data) {
       <em>${escapeHtml(slot.bestItem || "-")}${slot.topWeakness ? ` · ${escapeHtml(slot.topWeakness)}` : ""}</em>
     </article>`)
     .join("");
-  upgradeSlotList.innerHTML = roadmapCard + auditCard + reliabilityCard + checklistCards + slotCards;
+  upgradeSlotList.innerHTML = roadmapCard + auditCard + reliabilityCard + decisionCards + checklistCards + slotCards;
   const efficiencyCards = (plan.efficiencyProfile || [])
     .slice(0, 4)
     .map((row) => `<article class="upgrade-category">

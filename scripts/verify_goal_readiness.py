@@ -53,6 +53,7 @@ REQUIRED_PLAN_KEYS = {
     "primarySlot",
     "weaknessSummary",
     "primaryWeakness",
+    "repairDecisionMatrix",
     "repairChecklist",
     "repairRoadmap",
     "roadmapSummary",
@@ -129,6 +130,7 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
     rows = plan.get("top") or []
     all_rows = plan.get("all") or []
     roadmap = plan.get("repairRoadmap") or []
+    decision_matrix = plan.get("repairDecisionMatrix") or []
     weakness_summary = plan.get("weaknessSummary") or []
     repair_focus = plan.get("repairFocus") or {}
 
@@ -138,6 +140,8 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
         failures.append(f"{context}: no top item improvement candidates")
     if not roadmap:
         failures.append(f"{context}: no repair roadmap")
+    if not decision_matrix:
+        failures.append(f"{context}: no repair decision matrix")
     if not weakness_summary:
         failures.append(f"{context}: no weakness summary")
 
@@ -206,6 +210,18 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
                 failures.append(f"{context}: first checklist metric before does not match top candidate")
             if checklist_first.get("metricAfter") != first.get("metricAfter"):
                 failures.append(f"{context}: first checklist metric after does not match top candidate")
+        if decision_matrix:
+            first_decision = decision_matrix[0]
+            if first_decision.get("rank") != 1 or first_decision.get("decision") != "fix_first":
+                failures.append(f"{context}: first decision matrix row is not fix_first")
+            if first_decision.get("metric") != "unifiedConverted380":
+                failures.append(f"{context}: first decision matrix metric mismatch")
+            if not first_decision.get("slot") or not first_decision.get("item"):
+                failures.append(f"{context}: first decision matrix slot/item missing")
+            if first_decision.get("expectedGain", 0) <= 0:
+                failures.append(f"{context}: first decision matrix gain missing")
+            if not (first_decision.get("bossImpact") or {}).get("label"):
+                failures.append(f"{context}: first decision matrix boss impact missing")
         if repair_focus:
             if repair_focus.get("slot") != first.get("slot"):
                 failures.append(f"{context}: repair focus slot does not match top candidate")
@@ -349,6 +365,7 @@ def assert_goal_contract(view: dict[str, Any], context: str) -> list[str]:
         "repairMetric": "itemUpgradePlan.currentConverted",
         "repairFocus": "itemUpgradePlan.repairFocus",
         "repairChecklist": "itemUpgradePlan.repairChecklist",
+        "repairDecisionMatrix": "itemUpgradePlan.repairDecisionMatrix",
     }
     if field_paths != expected_paths:
         failures.append(f"{context}: goal contract field paths mismatch")

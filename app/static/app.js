@@ -387,6 +387,8 @@ function renderCoverage(data) {
   const primary = data.primaryMetric || {};
   const confidence = primary.confidence || {};
   const singleMetric = data.singleMetricAudit || {};
+  const manifest = data.jobFormulaManifest || {};
+  const currentFormula = manifest.current || {};
   const presetQuality = quality.presetSections || {};
   const current = coverage.current || {};
   const total = coverage.targetJobs || 0;
@@ -433,6 +435,11 @@ function renderCoverage(data) {
       "직업 공식",
       `${formula.matchedJob || current.job || "-"} · ${formulaStatus}`,
       formulaMissingPreview ? `부족: ${formulaMissingPreview}` : (formula.message || "직업별 계산식 적용 상태"),
+    ),
+    coverageRow(
+      "직업 매니페스트",
+      `${currentFormula.job || current.job || "-"} · ${formatNumber(manifest.jobCount || total)}직업`,
+      `${currentFormula.statMode || current.statMode || "single"} · ${currentFormula.attackType || current.attackType || "-"} · 무기상수 ${formatNumber(currentFormula.calibratedWeaponConstant || current.calibratedWeaponConstant || 0, 2)}`,
     ),
     coverageRow(
       "API 데이터",

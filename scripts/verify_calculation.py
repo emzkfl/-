@@ -23,6 +23,7 @@ from app.calc import (  # noqa: E402
     SPECIAL_COMBAT_CONVERTED_MODELS,
     build_view_model,
     calculation_coverage,
+    job_formula_manifest,
     job_detail_rule,
     primary_job_name,
     profile_from_lines,
@@ -72,6 +73,50 @@ def single_metric_failures(view: dict, context: str) -> list[str]:
     return failures
 
 
+def formula_manifest_failures(manifest: dict, context: str, expected_job: str | None = None) -> list[str]:
+    failures: list[str] = []
+    jobs = manifest.get("jobs") or []
+    known_jobs = manifest.get("knownJobs") or []
+    job_set = set(KMS_JOB_NAMES)
+    manifest_jobs = {str(row.get("job") or "") for row in jobs}
+
+    if manifest.get("jobCount") != len(KMS_JOB_NAMES):
+        failures.append(f"{context}: manifest job count mismatch")
+    if set(known_jobs) != job_set:
+        failures.append(f"{context}: manifest known jobs mismatch")
+    if manifest_jobs != job_set:
+        failures.append(f"{context}: manifest row jobs mismatch")
+
+    for row in jobs:
+        job = str(row.get("job") or "")
+        if not row.get("aliases") or row["aliases"][0] != job:
+            failures.append(f"{context}/{job}: aliases missing primary job")
+        if not row.get("mainStat"):
+            failures.append(f"{context}/{job}: main stat missing")
+        if not row.get("attackType"):
+            failures.append(f"{context}/{job}: attack type missing")
+        if float(row.get("weaponConstant") or 0) <= 0:
+            failures.append(f"{context}/{job}: weapon constant invalid")
+        if float(row.get("calibratedWeaponConstant") or 0) <= 0:
+            failures.append(f"{context}/{job}: calibrated weapon constant invalid")
+        if float(row.get("mastery") or 0) <= 0:
+            failures.append(f"{context}/{job}: mastery invalid")
+        if float(row.get("jobConvertedMultiplier") or 0) <= 0:
+            failures.append(f"{context}/{job}: converted multiplier invalid")
+        if float(row.get("combatPowerJobFactor") or 0) <= 0:
+            failures.append(f"{context}/{job}: combat power factor invalid")
+        if not row.get("upgradeTargets"):
+            failures.append(f"{context}/{job}: upgrade targets missing")
+
+    current = manifest.get("current") or {}
+    if expected_job:
+        if current.get("job") != expected_job:
+            failures.append(f"{context}: current manifest job {current.get('job')} != {expected_job}")
+        if not current.get("matched"):
+            failures.append(f"{context}: current manifest did not match a detailed rule")
+    return failures
+
+
 def assert_job_table_integrity() -> None:
     failures: list[str] = []
     job_set = set(KMS_JOB_NAMES)
@@ -96,6 +141,8 @@ def assert_job_table_integrity() -> None:
         missing = sorted(job_set - combat_jobs)
         extra = sorted(combat_jobs - job_set)
         failures.append(f"combat model job set mismatch missing={missing} extra={extra}")
+
+    failures.extend(formula_manifest_failures(job_formula_manifest("레테"), "global manifest", "레테"))
 
     for rule in JOB_DETAIL_RULES:
         job = str(rule["keywords"][0])
@@ -181,6 +228,7 @@ def assert_full_job_view_models() -> None:
         coverage = view["calculationCoverage"]["current"]
         formula = view["formulaDiagnostics"]
         plan = view["itemUpgradePlan"]
+        manifest = view["jobFormulaManifest"]
         if confidence["score"] < 70:
             failures.append(f"{job}: primary metric confidence too low {confidence}")
         if not confidence["reasons"]:
@@ -192,6 +240,7 @@ def assert_full_job_view_models() -> None:
         if primary["usedBy"]["itemUpgradePlan"] != primary["value"]:
             failures.append(f"{job}: item plan does not use primary metric")
         failures.extend(single_metric_failures(view, job))
+        failures.extend(formula_manifest_failures(manifest, job, job))
         if coverage["job"] != job:
             failures.append(f"{job}: matched job drifted to {coverage['job']}")
         if formula["status"] != "complete":
@@ -373,6 +422,10 @@ def assert_sample_view_model() -> None:
     assert confidence["reasons"]
     assert coverage["targetJobs"] >= 48
     assert coverage["current"]["job"] == "레테"
+    assert view["jobFormulaManifest"]["current"]["job"] == "레테"
+    assert view["jobFormulaManifest"]["current"]["mainStat"] == "INT"
+    assert view["jobFormulaManifest"]["current"]["attackType"] == "마력"
+    assert not formula_manifest_failures(view["jobFormulaManifest"], "sample 레테", "레테")
     assert view["summary"]["mainStat"] == "INT"
     assert view["summary"]["attackType"] == "마력"
     assert view["summary"]["unifiedConverted380"] == view["summary"]["bossBasisConverted380"]
@@ -556,10 +609,15 @@ def assert_api_warning_diagnostics() -> None:
 def assert_unknown_job_formula_diagnostics() -> None:
     view = build_view_model(sample_raw("신규직업", "INT", "마력", "INT : +3%"))
     formula = view["formulaDiagnostics"]
+    manifest = view["jobFormulaManifest"]
     assert formula["status"] == "fallback"
     assert not formula["detailRuleApplied"]
     assert not formula["convertedMultiplierApplied"]
     assert "직업 상세식" in formula["missingTables"]
+    assert manifest["current"]["job"] == "신규직업"
+    assert manifest["current"]["statMode"] == "fallback"
+    assert not manifest["current"]["matched"]
+    assert not formula_manifest_failures(manifest, "unknown manifest")
     assert view["summary"]["formulaStatus"] == "fallback"
     assert view["summary"]["unifiedConverted380"] > 0
     assert view["itemUpgradePlan"]["repairChecklist"]

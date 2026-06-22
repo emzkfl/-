@@ -876,6 +876,83 @@ def primary_job_name(rule: dict[str, Any] | None, fallback: str | None = None) -
     return str(fallback or "")
 
 
+def job_formula_manifest_row(rule: dict[str, Any]) -> dict[str, Any]:
+    job = primary_job_name(rule)
+    weapon = float(rule.get("weaponConstant") or DEFAULT_WEAPON_CONSTANT)
+    calibrated_weapon = float(rule.get("calibratedWeaponConstant") or weapon)
+    combat_factor, combat_matched = combat_converted_job_factor(job)
+    special_combat = special_combat_converted_model(job)
+    special_detail = special_detail_hybrid_model(job)
+    calibration = job_calibration_evidence(job)
+    combat_model = str((special_combat or {}).get("model") or ("combat_power_curve" if combat_matched else ""))
+    main_stat = str(rule.get("mainStat") or "")
+    return {
+        "job": job,
+        "aliases": [str(alias) for alias in rule.get("keywords") or ()],
+        "mainStat": main_stat,
+        "subStats": [str(stat) for stat in rule.get("subStats") or ()],
+        "attackType": str(rule.get("attackType") or ""),
+        "statMode": str(rule.get("statMode") or "single"),
+        "upgradeTargets": item_upgrade_stat_targets(job, main_stat),
+        "weaponConstant": weapon,
+        "calibratedWeaponConstant": calibrated_weapon,
+        "mastery": float(rule.get("mastery") or DEFAULT_MASTERY),
+        "jobConvertedMultiplier": job_converted_multiplier(job),
+        "combatPowerJobFactor": combat_factor,
+        "combatModel": combat_model,
+        "specialDetailModel": str((special_detail or {}).get("model") or ""),
+        "calibrationConfidence": str(calibration.get("confidence") or ""),
+        "calibrationSampleErrorPercent": float(calibration.get("sampleErrorPercent") or 0.0),
+    }
+
+
+def job_formula_manifest(character_class: str | None = None) -> dict[str, Any]:
+    rows = [job_formula_manifest_row(rule) for rule in JOB_DETAIL_RULES]
+    rows_by_job = {row["job"]: row for row in rows}
+    detail_rule = job_detail_rule(character_class)
+    matched_job = primary_job_name(detail_rule, character_class)
+    current = dict(rows_by_job.get(matched_job) or {})
+    current["inputClass"] = str(character_class or "")
+    current["matched"] = bool(detail_rule)
+    if not current.get("job"):
+        current.update(
+            {
+                "job": matched_job,
+                "aliases": [],
+                "mainStat": "",
+                "subStats": [],
+                "attackType": "",
+                "statMode": "fallback",
+                "upgradeTargets": [],
+                "weaponConstant": DEFAULT_WEAPON_CONSTANT,
+                "calibratedWeaponConstant": DEFAULT_WEAPON_CONSTANT,
+                "mastery": DEFAULT_MASTERY,
+                "jobConvertedMultiplier": 1.0,
+                "combatPowerJobFactor": 1.0,
+                "combatModel": "",
+                "specialDetailModel": "",
+                "calibrationConfidence": "",
+                "calibrationSampleErrorPercent": 0.0,
+            }
+        )
+
+    stat_modes: dict[str, int] = {}
+    attack_types: dict[str, int] = {}
+    for row in rows:
+        stat_modes[row["statMode"]] = stat_modes.get(row["statMode"], 0) + 1
+        attack_types[row["attackType"]] = attack_types.get(row["attackType"], 0) + 1
+
+    return {
+        "source": "internal_kms_job_formula_table",
+        "jobCount": len(rows),
+        "jobs": rows,
+        "current": current,
+        "statModes": stat_modes,
+        "attackTypes": attack_types,
+        "knownJobs": [row["job"] for row in rows],
+    }
+
+
 def calculation_coverage(character_class: str | None) -> dict[str, Any]:
     detail_missing = [job for job in KMS_JOB_NAMES if not job_detail_rule(job)]
     multiplier_missing = [job for job in KMS_JOB_NAMES if not table_matches_job(JOB_CONVERTED_MULTIPLIERS, job)]
@@ -3251,6 +3328,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     best_converted = best_preset.get("converted", boss_basis)
     boss_board = build_boss_board(boss_basis)
     coverage = calculation_coverage(character_class)
+    formula_manifest = job_formula_manifest(character_class)
     formula_quality = formula_diagnostics(coverage, converted, character_class)
     calculation_audit = build_calculation_audit(
         converted,
@@ -3348,6 +3426,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "presetUpgradePlans": preset_upgrade_plans,
         "apiDataQuality": api_quality,
         "formulaDiagnostics": formula_quality,
+        "jobFormulaManifest": formula_manifest,
         "calculationCoverage": coverage,
         "calculationAudit": calculation_audit,
         "singleMetricAudit": single_metric_audit,

@@ -89,6 +89,8 @@ def assert_sample_view_model() -> None:
     assert view["summary"]["mainStat"] == "INT"
     assert view["summary"]["attackType"] == "마력"
     assert view["itemUpgradePlan"]["top"]
+    assert view["itemUpgradePlan"]["top"][0]["priorityScore"] > 0
+    assert view["itemUpgradePlan"]["top"][0]["weaknesses"]
 
 
 def sample_raw(character_class: str, main_stat: str, attack_type: str, potential_line: str) -> dict:
@@ -156,12 +158,14 @@ def assert_special_item_targets() -> None:
     assert demon["calculationCoverage"]["current"]["statMode"] == "demon_avenger"
     assert demon_plan["upgradeTargets"] == ["최대 HP"]
     assert any("HP" in row["recommendedAction"] for row in demon_plan["top"])
+    assert any("HP" in weakness["label"] for row in demon_plan["top"] for weakness in row["weaknesses"])
 
     xenon = build_view_model(sample_raw("제논", "LUK", "공격력", "STR : +3%"))
     xenon_plan = xenon["itemUpgradePlan"]
     assert xenon["calculationCoverage"]["current"]["statMode"] == "xenon"
     assert xenon_plan["upgradeTargets"] == ["STR", "DEX", "LUK"]
     assert any("STR/DEX/LUK" in row["recommendedAction"] for row in xenon_plan["top"])
+    assert any("STR/DEX/LUK" in weakness["label"] for row in xenon_plan["top"] for weakness in row["weaknesses"])
 
 
 def main() -> None:

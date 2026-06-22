@@ -397,6 +397,9 @@ function renderUpgradePlan(data) {
       const scenarios = (row.scenarios || [])
         .map((scenario) => `<em>${escapeHtml(scenario.type)} · ${escapeHtml(scenario.action)} · +${formatNumber(scenario.gain)}</em>`)
         .join("");
+      const weaknesses = (row.weaknesses || [])
+        .map((weakness) => `<em>${escapeHtml(weakness.label)} ${formatNumber(weakness.current, 1)}${escapeHtml(weakness.unit || "")}/${formatNumber(weakness.target, 1)}${escapeHtml(weakness.unit || "")}</em>`)
+        .join("");
       return `<article class="upgrade-card">
         <div class="upgrade-rank">${index + 1}</div>
         <img src="${escapeHtml(row.icon)}" alt="" />
@@ -414,6 +417,7 @@ function renderUpgradePlan(data) {
             <span>현재 기여 ${formatNumber(row.contribution)}</span>
             <span>우선 ${formatNumber(row.priorityScore)}</span>
           </div>
+          <div class="upgrade-weaknesses">${weaknesses}</div>
           <div class="upgrade-scenarios">${scenarios}</div>
         </div>
       </article>`;

@@ -1291,6 +1291,53 @@ def starforce_target_bonus_label(targets: list[str]) -> str:
     return f"{target_label(targets)} +7"
 
 
+def weakness_row(label: str, current: float, target: float, unit: str = "") -> dict[str, Any]:
+    gap = max(0.0, target - current)
+    score = gap / target * 100 if target else 0.0
+    return {
+        "label": label,
+        "current": round(current, 2),
+        "target": round(target, 2),
+        "gap": round(gap, 2),
+        "unit": unit,
+        "score": round(score, 1),
+    }
+
+
+def item_weakness_breakdown(
+    item: dict[str, Any],
+    character_class: str,
+    main_stat: str,
+    attack_type: str,
+) -> list[dict[str, Any]]:
+    weapon_like = is_weapon_like_item(item)
+    stat_targets = item_upgrade_stat_targets(character_class, main_stat)
+    potential_profile = profile_from_lines(potential_lines(item))
+    additional_profile = profile_from_lines(potential_lines(item, additional=True))
+    weaknesses: list[dict[str, Any]] = []
+
+    if weapon_like:
+        target_attack_percent = grade_target_percent(str(item.get("potential_option_grade") or ""), True)
+        current_attack_percent = potential_profile["percent"].get(attack_type, 0.0)
+        weaknesses.append(weakness_row(f"잠재 {attack_type}%", current_attack_percent, target_attack_percent, "%"))
+        if "엠블렘" not in str(item.get("item_equipment_slot") or ""):
+            current_boss = potential_profile["combat"].get(K_BOSS, 0.0)
+            weaknesses.append(weakness_row("잠재 보공", current_boss, 30.0, "%"))
+    else:
+        target_stat_percent = grade_target_percent(str(item.get("potential_option_grade") or ""))
+        current_stat_percent = min(potential_profile["percent"].get(key, 0.0) for key in stat_targets)
+        weaknesses.append(weakness_row(f"잠재 {target_label(stat_targets)}%", current_stat_percent, target_stat_percent, "%"))
+
+    current_add_attack = additional_profile["flat"].get(attack_type, 0.0)
+    weaknesses.append(weakness_row(f"에디 {attack_type}", current_add_attack, 10.0))
+
+    starforce = int_number(item.get("starforce"))
+    if starforce:
+        weaknesses.append(weakness_row("스타포스", starforce, 22.0, "성"))
+
+    return sorted((row for row in weaknesses if row["gap"] > 0), key=lambda row: row["score"], reverse=True)
+
+
 def is_weapon_like_item(item: dict[str, Any]) -> bool:
     text = " ".join(
         str(item.get(key) or "")
@@ -1494,6 +1541,7 @@ def build_item_upgrade_plan(
         additional_grade = str(item.get("additional_potential_option_grade") or "-")
         potential_summary = " / ".join(potential_lines(item)) or "잠재 없음"
         additional_summary = " / ".join(potential_lines(item, additional=True)) or "에디 없음"
+        weaknesses = item_weakness_breakdown(item, character_class, main_stat, attack_type)
         rows.append(
             {
                 "slot": item.get("item_equipment_slot") or item.get("item_equipment_part") or "-",
@@ -1507,6 +1555,7 @@ def build_item_upgrade_plan(
                 "upgradeTargets": stat_targets,
                 "potentialSummary": potential_summary,
                 "additionalPotentialSummary": additional_summary,
+                "weaknesses": weaknesses[:4],
                 "recommendedType": best["type"],
                 "recommendedAction": best["action"],
                 "reason": best["reason"],

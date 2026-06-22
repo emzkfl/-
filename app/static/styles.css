@@ -902,18 +902,36 @@ h2 {
   font-weight: 900;
 }
 
+.upgrade-weaknesses,
 .upgrade-scenarios {
   display: grid;
   gap: 2px;
   margin-top: 6px;
 }
 
+.upgrade-weaknesses {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.upgrade-weaknesses em {
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: #fff4df;
+  color: #8a4d00;
+  font-weight: 900;
+}
+
+.upgrade-weaknesses em,
 .upgrade-scenarios em {
-  color: #657386;
   font-size: 11px;
   font-style: normal;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.upgrade-scenarios em {
+  color: #657386;
 }
 
 .item-list {

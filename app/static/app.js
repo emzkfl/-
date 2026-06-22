@@ -390,6 +390,7 @@ function renderCoverage(data) {
   const formula = data.formulaDiagnostics || {};
   const primary = data.primaryMetric || {};
   const goal = data.goalContract || {};
+  const bossAudit = data.bossBoardAudit || {};
   const readiness = data.readinessAudit || {};
   const confidence = primary.confidence || {};
   const singleMetric = data.singleMetricAudit || {};
@@ -446,6 +447,11 @@ function renderCoverage(data) {
       "단일 지표 연결",
       `${singleMetric.allMatched ? "일치" : "점검 필요"} · ${formatNumber(singleMetric.value || primary.value || 0)}`,
       singleMetricDetail || `${singleMetric.metricId || primary.id || "unifiedConverted380"} · ${singleMetric.basis || primary.basis || "-"}`,
+    ),
+    coverageRow(
+      "보스 판정",
+      `${bossAudit.allPassed ? "일치" : "점검 필요"} · ${formatNumber(bossAudit.ruleCount || 0)}개`,
+      `${bossAudit.ratioFormula || "currentConverted / requiredConverted * 100"} · ${formatNumber(bossAudit.baseMinutes || 30)}→${formatNumber(bossAudit.targetMinutes || 20)}분 · 체력 ${formatNumber((bossAudit.hpRatio || 0) * 100, 1)}%`,
     ),
     coverageRow(
       "목표 계약",

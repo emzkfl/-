@@ -7,6 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.calc import (  # noqa: E402
+    BOSS_RULES,
+    BOSS_RULE_BASE_MINUTES,
+    BOSS_RULE_DEFAULT_HP_RATIO,
+    BOSS_RULE_TARGET_MINUTES,
     CALIBRATION_EVIDENCE,
     COMBAT_CONVERTED_JOB_FACTORS,
     JOB_CONVERTED_MULTIPLIERS,
@@ -22,6 +26,7 @@ from app.calc import (  # noqa: E402
     KMS_JOB_NAMES,
     SPECIAL_COMBAT_CONVERTED_MODELS,
     build_view_model,
+    boss_time_adjustment,
     calculation_coverage,
     job_formula_manifest,
     job_detail_rule,
@@ -70,6 +75,54 @@ def single_metric_failures(view: dict, context: str) -> list[str]:
     for row in checks:
         if row.get("value") != audit.get("value") or not row.get("matches"):
             failures.append(f"{context}: single metric check failed {row}")
+    return failures
+
+
+def boss_board_failures(view: dict, context: str) -> list[str]:
+    failures: list[str] = []
+    primary = view.get("primaryMetric") or {}
+    board = view.get("bossBoard") or []
+    audit = view.get("bossBoardAudit") or {}
+    metric_value = int(round(float(primary.get("value") or 0)))
+
+    if not audit:
+        return [f"{context}: boss board audit missing"]
+    if audit.get("metric") != "unifiedConverted380":
+        failures.append(f"{context}: boss board audit metric mismatch")
+    if audit.get("currentConverted") != metric_value:
+        failures.append(f"{context}: boss board audit current converted mismatch")
+    if audit.get("ruleCount") != len(BOSS_RULES):
+        failures.append(f"{context}: boss board audit rule count mismatch")
+    if audit.get("expectedRuleCount") != len(BOSS_RULES):
+        failures.append(f"{context}: boss board audit expected rule count mismatch")
+    if audit.get("baseMinutes") != BOSS_RULE_BASE_MINUTES or audit.get("targetMinutes") != BOSS_RULE_TARGET_MINUTES:
+        failures.append(f"{context}: boss board audit minutes mismatch")
+    if audit.get("hpRatio") != round(BOSS_RULE_DEFAULT_HP_RATIO, 4):
+        failures.append(f"{context}: boss board audit hp ratio mismatch")
+    if audit.get("timeAdjustment") != round(boss_time_adjustment(), 4):
+        failures.append(f"{context}: boss board audit time adjustment mismatch")
+    if audit.get("failedCount") != 0 or not audit.get("allPassed"):
+        failures.append(f"{context}: boss board audit failed {audit.get('checks')}")
+    if len(board) != len(BOSS_RULES):
+        failures.append(f"{context}: boss board row count mismatch")
+
+    for row in board:
+        hp_ratio = float(row.get("hpRatio") or BOSS_RULE_DEFAULT_HP_RATIO)
+        adjustment = float(row.get("timeAdjustment") or round(boss_time_adjustment(hp_ratio), 4))
+        party_required = round(float(row.get("basePartyRequired") or 0.0) * adjustment)
+        solo_required = round(float(row.get("baseSoloRequired") or 0.0) * adjustment)
+        party_ratio = round(metric_value / party_required * 100, 1) if party_required else 0.0
+        solo_ratio = round(metric_value / solo_required * 100, 1) if solo_required else 0.0
+        if row.get("currentConverted") != metric_value:
+            failures.append(f"{context}/{row.get('name')}: boss current converted mismatch")
+        if row.get("partyRequired") != party_required or row.get("soloRequired") != solo_required:
+            failures.append(f"{context}/{row.get('name')}: boss required converted mismatch")
+        if row.get("partyRatio") != party_ratio or row.get("soloRatio") != solo_ratio:
+            failures.append(f"{context}/{row.get('name')}: boss ratio mismatch")
+        if row.get("partyPossible") != (party_ratio >= 100) or row.get("soloPossible") != (solo_ratio >= 100):
+            failures.append(f"{context}/{row.get('name')}: boss possible flag mismatch")
+        if row.get("baseMinutes") != BOSS_RULE_BASE_MINUTES or row.get("targetMinutes") != BOSS_RULE_TARGET_MINUTES:
+            failures.append(f"{context}/{row.get('name')}: boss time basis mismatch")
     return failures
 
 
@@ -470,6 +523,7 @@ def assert_full_job_view_models() -> None:
         if primary["usedBy"]["itemUpgradePlan"] != primary["value"]:
             failures.append(f"{job}: item plan does not use primary metric")
         failures.extend(single_metric_failures(view, job))
+        failures.extend(boss_board_failures(view, job))
         failures.extend(formula_integrity_failures(view, job))
         failures.extend(input_source_failures(view, job))
         failures.extend(readiness_failures(view, job, {"ready", "caution"}))
@@ -666,6 +720,7 @@ def assert_sample_view_model() -> None:
     assert view["summary"]["unifiedBasis"] == view["itemUpgradePlan"]["basis"]
     assert view["itemUpgradePlan"]["currentConverted"] == view["summary"]["unifiedConverted380"]
     assert view["bossBoard"][0]["currentConverted"] == view["summary"]["unifiedConverted380"]
+    assert not boss_board_failures(view, "sample 레테")
     assert view["itemUpgradePlan"]["top"]
     assert view["itemUpgradePlan"]["top"][0]["priorityScore"] > 0
     assert view["itemUpgradePlan"]["top"][0]["weaknesses"]

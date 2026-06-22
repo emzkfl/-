@@ -1701,6 +1701,78 @@ def build_boss_board(converted: float) -> list[dict[str, Any]]:
     return result
 
 
+def build_boss_board_audit(boss_board: list[dict[str, Any]], converted: float) -> dict[str, Any]:
+    metric_value = int_number(converted)
+
+    def same_float(actual: float, expected: float, tolerance: float = 0.05) -> bool:
+        return abs(actual - expected) <= tolerance
+
+    current_ok = all(int_number(row.get("currentConverted")) == metric_value for row in boss_board)
+    requirement_ok = True
+    ratio_ok = True
+    possible_ok = True
+    time_ok = True
+
+    failed_rows = []
+    for row in boss_board:
+        hp_ratio = float(row.get("hpRatio") or BOSS_RULE_DEFAULT_HP_RATIO)
+        adjustment = float(row.get("timeAdjustment") or round(boss_time_adjustment(hp_ratio), 4))
+        party_required = round(float(row.get("basePartyRequired") or 0.0) * adjustment)
+        solo_required = round(float(row.get("baseSoloRequired") or 0.0) * adjustment)
+        party_ratio = round(metric_value / party_required * 100, 1) if party_required else 0.0
+        solo_ratio = round(metric_value / solo_required * 100, 1) if solo_required else 0.0
+        row_requirement_ok = int_number(row.get("partyRequired")) == party_required and int_number(row.get("soloRequired")) == solo_required
+        row_ratio_ok = same_float(float(row.get("partyRatio") or 0.0), party_ratio) and same_float(float(row.get("soloRatio") or 0.0), solo_ratio)
+        row_possible_ok = bool(row.get("partyPossible")) == (party_ratio >= 100) and bool(row.get("soloPossible")) == (solo_ratio >= 100)
+        row_time_ok = (
+            int_number(row.get("baseMinutes")) == BOSS_RULE_BASE_MINUTES
+            and int_number(row.get("targetMinutes")) == BOSS_RULE_TARGET_MINUTES
+            and same_float(float(row.get("timeAdjustment") or 0.0), round(boss_time_adjustment(hp_ratio), 4), 0.0001)
+        )
+        requirement_ok = requirement_ok and row_requirement_ok
+        ratio_ok = ratio_ok and row_ratio_ok
+        possible_ok = possible_ok and row_possible_ok
+        time_ok = time_ok and row_time_ok
+        if not (row_requirement_ok and row_ratio_ok and row_possible_ok and row_time_ok):
+            failed_rows.append(
+                {
+                    "name": row.get("name") or "-",
+                    "requirementOk": row_requirement_ok,
+                    "ratioOk": row_ratio_ok,
+                    "possibleOk": row_possible_ok,
+                    "timeOk": row_time_ok,
+                }
+            )
+
+    count_ok = len(boss_board) == len(BOSS_RULES)
+    checks = [
+        {"id": "ruleCount", "label": "보스 룰 수", "passed": count_ok, "detail": f"{len(boss_board)} / {len(BOSS_RULES)}"},
+        {"id": "singleMetric", "label": "보스 기준 단일 지표", "passed": current_ok, "detail": f"대표 환산 {metric_value:,}"},
+        {"id": "timeAdjustment", "label": "30분→20분 보정", "passed": time_ok, "detail": "sqrt(체력비율 * 기준시간 / 목표시간)"},
+        {"id": "requirement", "label": "요구 환산", "passed": requirement_ok, "detail": "기준 요구 환산 * 시간/체력 보정"},
+        {"id": "ratio", "label": "가능 비율", "passed": ratio_ok, "detail": "대표 환산 / 요구 환산 * 100"},
+        {"id": "possibleFlag", "label": "가능 여부", "passed": possible_ok, "detail": "파티/솔플 100% 이상 가능"},
+    ]
+    failed = [row for row in checks if not row["passed"]]
+    return {
+        "metric": "unifiedConverted380",
+        "currentConverted": metric_value,
+        "ruleCount": len(boss_board),
+        "expectedRuleCount": len(BOSS_RULES),
+        "baseMinutes": BOSS_RULE_BASE_MINUTES,
+        "targetMinutes": BOSS_RULE_TARGET_MINUTES,
+        "hpRatio": round(BOSS_RULE_DEFAULT_HP_RATIO, 4),
+        "timeAdjustment": round(boss_time_adjustment(), 4),
+        "ratioFormula": "currentConverted / requiredConverted * 100",
+        "requirementFormula": "baseRequired * sqrt(hpRatio * baseMinutes / targetMinutes)",
+        "allPassed": not failed,
+        "checkCount": len(checks),
+        "failedCount": len(failed),
+        "checks": checks,
+        "failedRows": failed_rows[:8],
+    }
+
+
 def build_calculation_audit(
     converted: dict[str, Any],
     hexa_converted: dict[str, Any],
@@ -4042,6 +4114,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
     best_preset = preset_optimization.get("best") or {}
     best_converted = best_preset.get("converted", boss_basis)
     boss_board = build_boss_board(boss_basis)
+    boss_board_audit = build_boss_board_audit(boss_board, boss_basis)
     coverage = calculation_coverage(character_class)
     formula_manifest = job_formula_manifest(character_class)
     formula_quality = formula_diagnostics(coverage, converted, character_class)
@@ -4172,6 +4245,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "formulaIntegrityAudit": formula_integrity_audit,
         "singleMetricAudit": single_metric_audit,
         "readinessAudit": readiness_audit,
+        "bossBoardAudit": boss_board_audit,
         "itemUpgradePlan": item_upgrade_plan,
         "bossBoard": boss_board,
         "radar": radar(stats, converted),

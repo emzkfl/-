@@ -537,6 +537,7 @@ function renderUpgradePlan(data) {
   const repairAudit = plan.repairAudit || {};
   const roadmap = plan.repairRoadmap || [];
   const roadmapSummary = plan.roadmapSummary || {};
+  const roadmapBossImpact = roadmapSummary.bossImpact || {};
   const focusText = focus.description ? ` · ${focus.description}` : focus.slot ? ` · 우선 ${focus.slot}${focus.category ? `/${focus.category}` : ""}` : "";
   const efficiencyText = efficiency.action ? ` · 효율 ${efficiency.action} +${formatNumber(efficiency.gain || 0)}` : "";
   const reliabilityText = reliability.label ? ` · 추천 ${reliability.label}` : "";
@@ -550,7 +551,7 @@ function renderUpgradePlan(data) {
       <span>${formatNumber(row.rank || 0)}순위 · ${escapeHtml(row.slot || "-")}</span>
       <strong>+${formatNumber(row.expectedGain || 0)}</strong>
       <small>${escapeHtml(row.type || "-")} · ${escapeHtml(row.action || "-")}</small>
-      <em>${escapeHtml(row.item || "-")}${row.weakness?.label ? ` · ${escapeHtml(row.weakness.label)}` : ""}${step.projectedConverted ? ` · 예상 ${formatNumber(step.projectedConverted)}` : ""}</em>
+      <em>${escapeHtml(row.item || "-")}${row.weakness?.label ? ` · ${escapeHtml(row.weakness.label)}` : ""}${step.projectedConverted ? ` · 예상 ${formatNumber(step.projectedConverted)}` : ""}${step.cumulativeBossImpact?.label ? ` · 보스 영향 ${escapeHtml(step.cumulativeBossImpact.label)}` : ""}</em>
     </article>`;
     })
     .join("");
@@ -573,6 +574,7 @@ function renderUpgradePlan(data) {
       <span>개선 로드맵 · ${formatNumber(roadmapSummary.stepCount || 0)}단계</span>
       <strong>${formatNumber(roadmapSummary.projectedConverted || 0)}</strong>
       <small>누적 +${formatNumber(roadmapSummary.cumulativeGain || 0)} · ${formatNumber(roadmapSummary.projectedGainPercent || 0, 2)}%</small>
+      ${roadmapBossImpact.label ? `<em>보스 영향 ${escapeHtml(roadmapBossImpact.label)}</em>` : ""}
     </article>`
     : "";
   const slotCards = (plan.slotSummary || [])

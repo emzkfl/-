@@ -282,6 +282,27 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
                 failures.append(f"{context}: roadmap item mismatch {step}")
             if step.get("expectedGain") != source.get("expectedGain"):
                 failures.append(f"{context}: roadmap expected gain mismatch {step}")
+            if step.get("metricBefore") != previous_projected:
+                failures.append(f"{context}: roadmap metric before mismatch {step}")
+            if step.get("metricAfter") != step.get("projectedConverted"):
+                failures.append(f"{context}: roadmap metric after mismatch {step}")
+            step_impact = step.get("bossImpact") or {}
+            cumulative_impact = step.get("cumulativeBossImpact") or {}
+            for label, impact, expected_before in (
+                ("step", step_impact, step.get("metricBefore")),
+                ("cumulative", cumulative_impact, plan.get("currentConverted")),
+            ):
+                if not impact:
+                    failures.append(f"{context}: roadmap {label} boss impact missing {step}")
+                    continue
+                if impact.get("metric") != "unifiedConverted380":
+                    failures.append(f"{context}: roadmap {label} boss impact metric mismatch {step}")
+                if impact.get("metricBefore") != expected_before:
+                    failures.append(f"{context}: roadmap {label} boss impact before mismatch {step}")
+                if impact.get("metricAfter") != step.get("projectedConverted"):
+                    failures.append(f"{context}: roadmap {label} boss impact after mismatch {step}")
+                if not impact.get("label"):
+                    failures.append(f"{context}: roadmap {label} boss impact label missing {step}")
             if step.get("cumulativeGain", 0) < previous_cumulative:
                 failures.append(f"{context}: roadmap cumulative gain decreased {step}")
             if step.get("projectedConverted", 0) < previous_projected:
@@ -290,6 +311,18 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
             previous_projected = step.get("projectedConverted", previous_projected)
         if roadmap_summary.get("projectedConverted") != roadmap[-1].get("projectedConverted"):
             failures.append(f"{context}: roadmap summary projected converted mismatch")
+        summary_impact = roadmap_summary.get("bossImpact") or {}
+        if not summary_impact:
+            failures.append(f"{context}: roadmap summary boss impact missing")
+        else:
+            if summary_impact.get("metric") != "unifiedConverted380":
+                failures.append(f"{context}: roadmap summary boss impact metric mismatch")
+            if summary_impact.get("metricBefore") != plan.get("currentConverted"):
+                failures.append(f"{context}: roadmap summary boss impact before mismatch")
+            if summary_impact.get("metricAfter") != roadmap_summary.get("projectedConverted"):
+                failures.append(f"{context}: roadmap summary boss impact after mismatch")
+            if summary_impact.get("label") != (roadmap[-1].get("cumulativeBossImpact") or {}).get("label"):
+                failures.append(f"{context}: roadmap summary boss impact label mismatch")
     if not audit:
         failures.append(f"{context}: repair audit missing")
     else:

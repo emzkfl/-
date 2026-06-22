@@ -2982,8 +2982,11 @@ def build_repair_roadmap(
     for index, row in enumerate(rows[:limit], 1):
         scenario = (row.get("scenarios") or [{}])[0]
         gain = float(scenario.get("gain") or row.get("expectedGain") or 0.0)
+        step_before = current_converted + cumulative_gain
         cumulative_gain += gain
         projected = current_converted + cumulative_gain
+        step_boss_impact = build_repair_boss_impact(round(step_before), round(projected))
+        cumulative_boss_impact = build_repair_boss_impact(round(current_converted), round(projected))
         weakness = (row.get("weaknesses") or [{}])[0]
         roadmap.append(
             {
@@ -2995,8 +2998,10 @@ def build_repair_roadmap(
                 "type": scenario.get("type") or row.get("recommendedType") or "-",
                 "action": scenario.get("action") or row.get("recommendedAction") or "-",
                 "metric": row.get("metric") or "unifiedConverted380",
-                "metricBefore": row.get("metricBefore") or round(current_converted),
+                "metricBefore": round(step_before),
                 "metricAfter": round(projected),
+                "bossImpact": step_boss_impact,
+                "cumulativeBossImpact": cumulative_boss_impact,
                 "expectedGain": round(gain),
                 "cumulativeGain": round(cumulative_gain),
                 "projectedConverted": round(projected),
@@ -3015,6 +3020,7 @@ def build_roadmap_summary(
     last = roadmap[-1] if roadmap else {}
     cumulative_gain = int_number(last.get("cumulativeGain")) if last else 0
     projected = int_number(last.get("projectedConverted"), int_number(current_converted)) if last else int_number(current_converted)
+    boss_impact = build_repair_boss_impact(round(current_converted), projected) if roadmap else {}
     return {
         "basis": basis,
         "estimateMode": "additive_expected_gain",
@@ -3022,6 +3028,7 @@ def build_roadmap_summary(
         "currentConverted": round(current_converted),
         "cumulativeGain": cumulative_gain,
         "projectedConverted": projected,
+        "bossImpact": boss_impact,
         "projectedGainPercent": round(cumulative_gain / current_converted * 100, 2) if current_converted else 0.0,
         "firstStep": roadmap[0] if roadmap else None,
         "lastStep": last or None,

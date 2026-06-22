@@ -151,6 +151,7 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
             "metric",
             "metricBefore",
             "metricAfter",
+            "bossImpact",
             "expectedGain",
             "expectedGainPercent",
             "recommendationEvidence",
@@ -168,6 +169,8 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
             failures.append(f"{context}: top metric before does not match current converted")
         if first.get("metricAfter") != first.get("metricBefore", 0) + first.get("expectedGain", 0):
             failures.append(f"{context}: top metric after does not match expected gain")
+        if not (first.get("bossImpact") or {}).get("label"):
+            failures.append(f"{context}: top boss impact label missing")
         if first.get("expectedGainPercent", 0) <= 0:
             failures.append(f"{context}: top expected gain percent is not positive")
         if not first.get("slot") or not first.get("name"):
@@ -220,6 +223,10 @@ def assert_repair_plan(view: dict[str, Any], context: str) -> list[str]:
             failures.append(f"{context}: first roadmap step does not increase unified converted score")
         if (plan.get("roadmapSummary") or {}).get("projectedConverted") != roadmap[-1].get("projectedConverted"):
             failures.append(f"{context}: roadmap summary does not match final roadmap step")
+        if not (roadmap[0].get("cumulativeBossImpact") or {}).get("label"):
+            failures.append(f"{context}: first roadmap cumulative boss impact missing")
+        if not ((plan.get("roadmapSummary") or {}).get("bossImpact") or {}).get("label"):
+            failures.append(f"{context}: roadmap summary boss impact missing")
 
     if weakness_summary and plan.get("primaryWeakness") != weakness_summary[0]:
         failures.append(f"{context}: primary weakness does not match first weakness summary row")

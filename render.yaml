@@ -4,6 +4,8 @@ services:
     name: maple-live-scout
     region: singapore
     plan: free
+    branch: main
+    autoDeployTrigger: commit
     buildCommand: pip install -r requirements.txt
     startCommand: python app/server.py
     healthCheckPath: /api/health

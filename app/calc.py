@@ -1264,6 +1264,25 @@ def profile_from_lines(lines: list[str]) -> dict[str, dict[str, float]]:
     return profile
 
 
+def option_profile(options: dict[str, Any]) -> dict[str, dict[str, float]]:
+    profile = empty_profile()
+    for stat in (*STAT_KEYS, K_HP):
+        add_to_profile(profile, "flat", stat, option_number(options, stat))
+    add_to_profile(profile, "flat", K_ATTACK, option_number(options, K_ATTACK))
+    add_to_profile(profile, "flat", K_MAGIC, option_number(options, K_MAGIC))
+    all_stat = option_number(options, "\uc62c\uc2a4\ud0ef")
+    for stat in STAT_KEYS:
+        add_to_profile(profile, "percent", stat, all_stat)
+    add_to_profile(profile, "combat", K_BOSS, option_number(options, K_BOSS))
+    add_to_profile(profile, "combat", K_DAMAGE, option_number(options, K_DAMAGE))
+    add_to_profile(profile, "combat", K_IED, option_number(options, "ignore_monster_armor"))
+    return profile
+
+
+def has_option_payload(options: dict[str, Any]) -> bool:
+    return isinstance(options, dict) and any(value not in (None, "") for value in options.values())
+
+
 def grade_target_percent(grade: str, weapon_like: bool = False) -> float:
     text = str(grade or "")
     if "\ub808\uc804\ub4dc\ub9ac" in text or "legendary" in text.lower():
@@ -1297,6 +1316,36 @@ def starforce_target_bonus_label(targets: list[str]) -> str:
     return f"{target_label(targets)} +7"
 
 
+def source_target_flat(source: str, key: str, weapon_like: bool = False) -> float:
+    if source == "flame":
+        if key == K_HP:
+            return 3500.0
+        if key in (K_ATTACK, K_MAGIC):
+            return 80.0 if weapon_like else 16.0
+        return 110.0
+    if source == "scroll":
+        if key == K_HP:
+            return 2500.0
+        if key in (K_ATTACK, K_MAGIC):
+            return 40.0 if weapon_like else 10.0
+        return 70.0
+    return 0.0
+
+
+def source_profile_gap(
+    profile: dict[str, dict[str, float]],
+    source: str,
+    keys: list[str],
+    weapon_like: bool = False,
+) -> tuple[float, float]:
+    targets = [source_target_flat(source, key, weapon_like) for key in keys]
+    currents = [profile["flat"].get(key, 0.0) for key in keys]
+    gaps = [max(0.0, target - current) for target, current in zip(targets, currents)]
+    if not gaps:
+        return 0.0, 0.0
+    return min(gaps), sum(targets) / len(targets)
+
+
 def weakness_row(label: str, current: float, target: float, unit: str = "") -> dict[str, Any]:
     gap = max(0.0, target - current)
     score = gap / target * 100 if target else 0.0
@@ -1320,6 +1369,10 @@ def item_weakness_breakdown(
     stat_targets = item_upgrade_stat_targets(character_class, main_stat)
     potential_profile = profile_from_lines(potential_lines(item))
     additional_profile = profile_from_lines(potential_lines(item, additional=True))
+    flame_options = item.get("item_add_option") or {}
+    scroll_options = item.get("item_etc_option") or {}
+    flame_profile = option_profile(flame_options)
+    scroll_profile = option_profile(scroll_options)
     weaknesses: list[dict[str, Any]] = []
 
     if weapon_like:
@@ -1329,10 +1382,22 @@ def item_weakness_breakdown(
         if "엠블렘" not in str(item.get("item_equipment_slot") or ""):
             current_boss = potential_profile["combat"].get(K_BOSS, 0.0)
             weaknesses.append(weakness_row("잠재 보공", current_boss, 30.0, "%"))
+        if has_option_payload(flame_options):
+            flame_target = source_target_flat("flame", attack_type, True)
+            weaknesses.append(weakness_row(f"추옵 {attack_type}", flame_profile["flat"].get(attack_type, 0.0), flame_target))
+        if has_option_payload(scroll_options):
+            scroll_target = source_target_flat("scroll", attack_type, True)
+            weaknesses.append(weakness_row(f"작 {attack_type}", scroll_profile["flat"].get(attack_type, 0.0), scroll_target))
     else:
         target_stat_percent = grade_target_percent(str(item.get("potential_option_grade") or ""))
         current_stat_percent = min(potential_profile["percent"].get(key, 0.0) for key in stat_targets)
         weaknesses.append(weakness_row(f"잠재 {target_label(stat_targets)}%", current_stat_percent, target_stat_percent, "%"))
+        if has_option_payload(flame_options):
+            flame_gap, flame_target = source_profile_gap(flame_profile, "flame", stat_targets, False)
+            weaknesses.append(weakness_row(f"추옵 {target_label(stat_targets)}", max(0.0, flame_target - flame_gap), flame_target))
+        if has_option_payload(scroll_options):
+            scroll_gap, scroll_target = source_profile_gap(scroll_profile, "scroll", stat_targets, False)
+            weaknesses.append(weakness_row(f"작 {target_label(stat_targets)}", max(0.0, scroll_target - scroll_gap), scroll_target))
 
     current_add_attack = additional_profile["flat"].get(attack_type, 0.0)
     weaknesses.append(weakness_row(f"에디 {attack_type}", current_add_attack, 10.0))
@@ -1415,6 +1480,10 @@ def best_item_upgrade_scenarios(
     weapon_like = is_weapon_like_item(item)
     potential_profile = profile_from_lines(potential_lines(item))
     additional_profile = profile_from_lines(potential_lines(item, additional=True))
+    flame_options = item.get("item_add_option") or {}
+    scroll_options = item.get("item_etc_option") or {}
+    flame_profile = option_profile(flame_options)
+    scroll_profile = option_profile(scroll_options)
     stat_targets = item_upgrade_stat_targets(character_class, main_stat)
 
     if weapon_like:
@@ -1443,6 +1512,32 @@ def best_item_upgrade_scenarios(
                     "reason": "\ubb34\uae30/\ubcf4\uc870\ubb34\uae30 \ubcf4\uc2a4 \ud6a8\uc728 \ubd80\uc871\ubd84",
                 }
             )
+
+        flame_attack_gap, _ = source_profile_gap(flame_profile, "flame", [attack_type], True)
+        if has_option_payload(flame_options) and flame_attack_gap > 0:
+            value = min(20.0, flame_attack_gap)
+            gain = gain_scenario(stats, item_response, character_class, current_converted, "flat", attack_type, value, score_multiplier)
+            scenarios.append(
+                {
+                    "type": "\ucd94\uc635",
+                    "action": f"{attack_type} +{value:g} \ubcf4\uac15",
+                    "gain": gain,
+                    "reason": "\ubb34\uae30 \ucd94\uac00\uc635\uc158 \uacf5\ub9c8 \ubd80\uc871\ubd84",
+                }
+            )
+
+        scroll_attack_gap, _ = source_profile_gap(scroll_profile, "scroll", [attack_type], True)
+        if has_option_payload(scroll_options) and scroll_attack_gap > 0:
+            value = min(10.0, scroll_attack_gap)
+            gain = gain_scenario(stats, item_response, character_class, current_converted, "flat", attack_type, value, score_multiplier)
+            scenarios.append(
+                {
+                    "type": "\uc791/\uc8fc\ubb38\uc11c",
+                    "action": f"{attack_type} +{value:g} \ubcf4\uac15",
+                    "gain": gain,
+                    "reason": "\ubb34\uae30 \uc791/\uc8fc\ubb38\uc11c \uacf5\ub9c8 \ubd80\uc871\ubd84",
+                }
+            )
     else:
         target_main_percent = grade_target_percent(str(item.get("potential_option_grade") or ""))
         current_main_percent = min(potential_profile["percent"].get(key, 0.0) for key in stat_targets)
@@ -1464,6 +1559,50 @@ def best_item_upgrade_scenarios(
                     "action": f"{target_label(stat_targets)} {main_gap:g}% \ubcf4\uac15",
                     "gain": gain,
                     "reason": "\uc9c1\uc5c5 \uae30\uc900 \uc7a5\ube44 \uc7a0\uc7ac% \ubd80\uc871\ubd84",
+                }
+            )
+
+        flame_stat_gap, _ = source_profile_gap(flame_profile, "flame", stat_targets, False)
+        if has_option_payload(flame_options) and flame_stat_gap > 0:
+            value = min(25.0, flame_stat_gap)
+            gain = gain_multi_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "flat",
+                stat_targets,
+                value,
+                score_multiplier,
+            )
+            scenarios.append(
+                {
+                    "type": "\ucd94\uc635",
+                    "action": f"{target_label(stat_targets)} +{value:g} \ubcf4\uac15",
+                    "gain": gain,
+                    "reason": "\uc7a5\ube44 \ucd94\uac00\uc635\uc158 \uc8fc\uc694 \uc2a4\ud0ef \ubd80\uc871\ubd84",
+                }
+            )
+
+        scroll_stat_gap, _ = source_profile_gap(scroll_profile, "scroll", stat_targets, False)
+        if has_option_payload(scroll_options) and scroll_stat_gap > 0:
+            value = min(15.0, scroll_stat_gap)
+            gain = gain_multi_scenario(
+                stats,
+                item_response,
+                character_class,
+                current_converted,
+                "flat",
+                stat_targets,
+                value,
+                score_multiplier,
+            )
+            scenarios.append(
+                {
+                    "type": "\uc791/\uc8fc\ubb38\uc11c",
+                    "action": f"{target_label(stat_targets)} +{value:g} \ubcf4\uac15",
+                    "gain": gain,
+                    "reason": "\uc7a5\ube44 \uc791/\uc8fc\ubb38\uc11c \uc8fc\uc694 \uc2a4\ud0ef \ubd80\uc871\ubd84",
                 }
             )
 

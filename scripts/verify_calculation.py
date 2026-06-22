@@ -138,6 +138,8 @@ def sample_raw(character_class: str, main_stat: str, attack_type: str, potential
                     "additional_potential_option_1": f"{attack_type} : +1",
                     "item_total_option": {"attack_power": "320", "magic_power": "320", "str": "80", "int": "80"},
                     "item_base_option": {"attack_power": "200", "magic_power": "200"},
+                    "item_add_option": {"attack_power": "30", "magic_power": "30"},
+                    "item_etc_option": {"attack_power": "20", "magic_power": "20"},
                 },
                 {
                     "item_equipment_slot": "모자",
@@ -150,6 +152,8 @@ def sample_raw(character_class: str, main_stat: str, attack_type: str, potential
                     "additional_potential_option_1": f"{attack_type} : +1",
                     "item_total_option": {"str": "140", "dex": "140", "int": "140", "luk": "140", "max_hp": "5000", "attack_power": "20", "magic_power": "20"},
                     "item_base_option": {main_stat.lower(): "30"},
+                    "item_add_option": {"str": "40", "dex": "40", "int": "40", "luk": "40", "max_hp": "1200"},
+                    "item_etc_option": {"str": "30", "dex": "30", "int": "30", "luk": "30", "max_hp": "900"},
                 },
             ]
         },
@@ -163,6 +167,7 @@ def assert_special_item_targets() -> None:
     assert demon_plan["upgradeTargets"] == ["최대 HP"]
     assert any("HP" in row["recommendedAction"] for row in demon_plan["top"])
     assert any("HP" in weakness["label"] for row in demon_plan["top"] for weakness in row["weaknesses"])
+    assert any(("추옵" in weakness["label"] or "작" in weakness["label"]) for row in demon_plan["top"] for weakness in row["weaknesses"])
 
     xenon = build_view_model(sample_raw("제논", "LUK", "공격력", "STR : +3%"))
     xenon_plan = xenon["itemUpgradePlan"]
@@ -170,6 +175,7 @@ def assert_special_item_targets() -> None:
     assert xenon_plan["upgradeTargets"] == ["STR", "DEX", "LUK"]
     assert any("STR/DEX/LUK" in row["recommendedAction"] for row in xenon_plan["top"])
     assert any("STR/DEX/LUK" in weakness["label"] for row in xenon_plan["top"] for weakness in row["weaknesses"])
+    assert any(("추옵" in scenario["type"] or "작" in scenario["type"]) for row in xenon_plan["top"] for scenario in row["scenarios"])
 
 
 def assert_preset_metric_basis() -> None:

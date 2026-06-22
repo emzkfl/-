@@ -2536,6 +2536,67 @@ def build_upgrade_slot_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any
     return sorted(result, key=lambda row: (row["priorityScore"], row["totalGain"], row["bestGain"]), reverse=True)
 
 
+def build_weakness_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    buckets: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        expected_gain = float(row.get("expectedGain") or 0.0)
+        priority = float(row.get("priorityScore") or 0.0)
+        for weakness in row.get("weaknesses") or []:
+            label = str(weakness.get("label") or "")
+            if not label:
+                continue
+            bucket = buckets.setdefault(
+                label,
+                {
+                    "label": label,
+                    "candidateCount": 0,
+                    "totalGap": 0.0,
+                    "totalScore": 0.0,
+                    "totalExpectedGain": 0.0,
+                    "priorityScore": 0.0,
+                    "bestScore": 0.0,
+                    "bestGap": 0.0,
+                    "bestItem": "",
+                    "bestSlot": "",
+                    "unit": weakness.get("unit") or "",
+                },
+            )
+            gap = float(weakness.get("gap") or 0.0)
+            score = float(weakness.get("score") or 0.0)
+            bucket["candidateCount"] += 1
+            bucket["totalGap"] += gap
+            bucket["totalScore"] += score
+            bucket["totalExpectedGain"] += expected_gain
+            bucket["priorityScore"] += priority * (score / 100 if score else 0.1)
+            if score > bucket["bestScore"]:
+                bucket["bestScore"] = score
+                bucket["bestGap"] = gap
+                bucket["bestItem"] = row.get("name") or "-"
+                bucket["bestSlot"] = row.get("slot") or row.get("part") or "-"
+                bucket["unit"] = weakness.get("unit") or ""
+
+    result = []
+    for bucket in buckets.values():
+        count = int(bucket["candidateCount"])
+        result.append(
+            {
+                "label": bucket["label"],
+                "candidateCount": count,
+                "totalGap": round(bucket["totalGap"], 2),
+                "averageGap": round(bucket["totalGap"] / count, 2) if count else 0.0,
+                "averageScore": round(bucket["totalScore"] / count, 1) if count else 0.0,
+                "totalExpectedGain": round(bucket["totalExpectedGain"]),
+                "priorityScore": round(bucket["priorityScore"]),
+                "bestScore": round(bucket["bestScore"], 1),
+                "bestGap": round(bucket["bestGap"], 2),
+                "bestItem": bucket["bestItem"],
+                "bestSlot": bucket["bestSlot"],
+                "unit": bucket["unit"],
+            }
+        )
+    return sorted(result, key=lambda row: (row["priorityScore"], row["totalExpectedGain"], row["bestScore"]), reverse=True)
+
+
 def build_repair_checklist(rows: list[dict[str, Any]], limit: int = 5) -> list[dict[str, Any]]:
     checklist = []
     for index, row in enumerate(rows[:limit], 1):
@@ -2931,6 +2992,7 @@ def build_item_upgrade_plan(
     rows.sort(key=lambda row: (row["priorityScore"], row["expectedGain"], -row["contribution"]), reverse=True)
     category_summary = build_upgrade_category_summary(rows)
     slot_summary = build_upgrade_slot_summary(rows)
+    weakness_summary = build_weakness_summary(rows)
     repair_checklist = build_repair_checklist(rows)
     repair_evidence = build_repair_evidence_summary(rows, basis, main_stat, attack_type, stat_targets)
     repair_audit = build_repair_consistency_audit(rows, repair_checklist, repair_evidence, basis)
@@ -2953,6 +3015,8 @@ def build_item_upgrade_plan(
         "upgradeTargets": stat_targets,
         "categorySummary": category_summary,
         "primaryCategory": category_summary[0] if category_summary else None,
+        "weaknessSummary": weakness_summary,
+        "primaryWeakness": weakness_summary[0] if weakness_summary else None,
         "efficiencyProfile": efficiency_profile,
         "primaryEfficiency": efficiency_profile[0] if efficiency_profile else None,
         "slotSummary": slot_summary,

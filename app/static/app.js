@@ -534,6 +534,14 @@ function renderUpgradePlan(data) {
       <small>${escapeHtml(row.action || "-")} · ${formatNumber(row.gainPercent || 0, 3)}%</small>
     </article>`)
     .join("");
+  const weaknessCards = (plan.weaknessSummary || [])
+    .slice(0, 4)
+    .map((row) => `<article class="upgrade-category">
+      <span>부족 · ${escapeHtml(row.label || "-")}</span>
+      <strong>${formatNumber(row.candidateCount || 0)}개</strong>
+      <small>${escapeHtml(row.bestSlot || "-")} ${escapeHtml(row.bestItem || "-")} · 부족 ${formatNumber(row.bestGap || 0, 1)}${escapeHtml(row.unit || "")}</small>
+    </article>`)
+    .join("");
   const categoryCards = (plan.categorySummary || [])
     .slice(0, 5)
     .map((category) => `<article class="upgrade-category">
@@ -542,7 +550,7 @@ function renderUpgradePlan(data) {
       <small>${formatNumber(category.sharePercent, 1)}% · ${escapeHtml(category.bestItem || "-")} · ${escapeHtml(category.bestAction || "-")}</small>
     </article>`)
     .join("");
-  upgradeCategoryList.innerHTML = efficiencyCards + categoryCards;
+  upgradeCategoryList.innerHTML = weaknessCards + efficiencyCards + categoryCards;
   if (!rows.length) {
     upgradeList.innerHTML = `<article class="upgrade-card empty-card">
       <strong>추천할 개선 항목이 없습니다</strong>

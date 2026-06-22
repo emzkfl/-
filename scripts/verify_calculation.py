@@ -122,6 +122,7 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     rows = plan.get("top") or []
     summary = plan.get("repairEvidence") or {}
     audit = plan.get("repairAudit") or {}
+    weakness_summary = plan.get("weaknessSummary") or []
 
     if not summary:
         failures.append(f"{context}: repair evidence summary missing")
@@ -161,6 +162,19 @@ def recommendation_evidence_failures(plan: dict, context: str) -> list[str]:
     for checklist_row in plan.get("repairChecklist") or []:
         if not checklist_row.get("recommendationEvidence"):
             failures.append(f"{context}: checklist recommendation evidence missing")
+    weakness_labels = {weakness.get("label") for row in rows for weakness in (row.get("weaknesses") or [])}
+    summary_labels = {row.get("label") for row in weakness_summary}
+    if rows and not weakness_summary:
+        failures.append(f"{context}: weakness summary missing")
+    if not summary_labels.issubset(weakness_labels):
+        failures.append(f"{context}: weakness summary has unknown labels {sorted(summary_labels - weakness_labels)}")
+    for row in weakness_summary:
+        if row.get("candidateCount", 0) <= 0:
+            failures.append(f"{context}/{row.get('label')}: weakness candidate count missing")
+        if row.get("priorityScore", 0) <= 0:
+            failures.append(f"{context}/{row.get('label')}: weakness priority score missing")
+        if not row.get("bestItem"):
+            failures.append(f"{context}/{row.get('label')}: weakness best item missing")
     if not audit:
         failures.append(f"{context}: repair audit missing")
     else:
@@ -586,6 +600,9 @@ def assert_sample_view_model() -> None:
     assert view["itemUpgradePlan"]["primaryEfficiency"]["gainPercent"] > 0
     assert view["itemUpgradePlan"]["categorySummary"]
     assert view["itemUpgradePlan"]["primaryCategory"]["totalGain"] > 0
+    assert view["itemUpgradePlan"]["weaknessSummary"]
+    assert view["itemUpgradePlan"]["primaryWeakness"] == view["itemUpgradePlan"]["weaknessSummary"][0]
+    assert view["itemUpgradePlan"]["primaryWeakness"]["candidateCount"] > 0
     assert view["itemUpgradePlan"]["slotSummary"]
     assert view["itemUpgradePlan"]["primarySlot"]["totalGain"] > 0
     assert view["itemUpgradePlan"]["repairFocus"]["slot"]
@@ -681,8 +698,10 @@ def assert_special_item_targets() -> None:
     assert any("HP" in row["action"] for row in demon_plan["efficiencyProfile"])
     assert any("HP" in row["recommendedAction"] for row in demon_plan["top"])
     assert any("HP" in weakness["label"] for row in demon_plan["top"] for weakness in row["weaknesses"])
+    assert any("HP" in row["label"] for row in demon_plan["weaknessSummary"])
     assert any(("추옵" in weakness["label"] or "작" in weakness["label"]) for row in demon_plan["top"] for weakness in row["weaknesses"])
     assert demon_plan["categorySummary"]
+    assert demon_plan["weaknessSummary"]
     assert demon_plan["slotSummary"]
 
     xenon = build_view_model(sample_raw("제논", "LUK", "공격력", "STR : +3%"))
@@ -693,8 +712,10 @@ def assert_special_item_targets() -> None:
     assert any("STR/DEX/LUK" in row["action"] for row in xenon_plan["efficiencyProfile"])
     assert any("STR/DEX/LUK" in row["recommendedAction"] for row in xenon_plan["top"])
     assert any("STR/DEX/LUK" in weakness["label"] for row in xenon_plan["top"] for weakness in row["weaknesses"])
+    assert any("STR/DEX/LUK" in row["label"] for row in xenon_plan["weaknessSummary"])
     assert any(("추옵" in scenario["type"] or "작" in scenario["type"]) for row in xenon_plan["top"] for scenario in row["scenarios"])
     assert xenon_plan["categorySummary"]
+    assert xenon_plan["weaknessSummary"]
     assert xenon_plan["slotSummary"]
 
 

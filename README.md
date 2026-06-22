@@ -22,6 +22,14 @@ python app\server.py
 http://127.0.0.1:4176/
 ```
 
+## 계산식 검증
+
+레테를 포함한 KMS 48개 직업의 상세식, 환산 보정, 전투력 모델 커버리지를 확인합니다.
+
+```powershell
+python scripts\verify_calculation.py
+```
+
 ## Render 배포
 
 1. 이 폴더를 GitHub 저장소에 올립니다.

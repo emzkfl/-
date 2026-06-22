@@ -29,6 +29,7 @@ const symbolIcons = document.querySelector("#symbol-icons");
 const abilityList = document.querySelector("#ability-list");
 const hyperList = document.querySelector("#hyper-list");
 const extraList = document.querySelector("#extra-list");
+const coverageList = document.querySelector("#coverage-list");
 const upgradeSummary = document.querySelector("#upgrade-summary");
 const upgradeList = document.querySelector("#upgrade-list");
 const equipmentSummary = document.querySelector("#equipment-summary");
@@ -333,6 +334,14 @@ function extraRow(label, count, preview) {
   </div>`;
 }
 
+function coverageRow(label, value, preview) {
+  return `<div class="coverage-row">
+    <span>${escapeHtml(label)}</span>
+    <strong>${escapeHtml(value)}</strong>
+    <small>${escapeHtml(preview || "")}</small>
+  </div>`;
+}
+
 function renderExtra(data) {
   const extra = data.extra || {};
   const counts = extra.counts || {};
@@ -344,6 +353,24 @@ function renderExtra(data) {
     extraRow("V코어", counts.vCores, previewNames(extra.vCores)),
     extraRow("HEXA 코어", counts.hexaCores, previewNames(extra.hexaCores)),
     extraRow("HEXA 스탯", counts.hexaStatCores, counts.hexaStatCores ? "설정 정보 수집됨" : "정보 없음"),
+  ].join("");
+}
+
+function renderCoverage(data) {
+  const coverage = data.calculationCoverage || {};
+  const current = coverage.current || {};
+  const total = coverage.targetJobs || 0;
+  const missing = [
+    ...(coverage.missingDetailJobs || []),
+    ...(coverage.missingMultiplierJobs || []),
+    ...(coverage.missingCombatJobs || []),
+  ];
+  coverageList.innerHTML = [
+    coverageRow("KMS 상세식", `${formatNumber(coverage.coveredDetailJobs || 0)} / ${formatNumber(total)}`, "레테 포함 직업별 주스탯·무기상수 적용"),
+    coverageRow("환산 보정", `${formatNumber(coverage.coveredMultiplierJobs || 0)} / ${formatNumber(total)}`, "원사이트 샘플 기반 직업별 배율"),
+    coverageRow("전투력 모델", `${formatNumber(coverage.coveredCombatJobs || 0)} / ${formatNumber(total)}`, "특수 직업은 별도 모델 포함"),
+    coverageRow("현재 직업", current.job || "-", `${current.mainStat || "-"} / ${current.attackType || "-"} · ${current.statMode || "single"}`),
+    coverageRow("특수 보정", current.specialDetailModel || current.specialCombatModel || "일반 상세식", missing.length ? `누락 ${missing.length}개` : "누락 없음"),
   ].join("");
 }
 
@@ -376,12 +403,14 @@ function renderUpgradePlan(data) {
           <div class="upgrade-head">
             <span>${escapeHtml(row.slot || row.part || "-")}</span>
             <b>${escapeHtml(row.name || "-")}</b>
+            <i>${escapeHtml(row.currentState || "-")}</i>
           </div>
           <strong>${escapeHtml(row.recommendedType)} · ${escapeHtml(row.recommendedAction)}</strong>
           <small>${escapeHtml(row.reason || "")}</small>
           <div class="upgrade-metrics">
             <span>예상 +${formatNumber(row.expectedGain)} (${formatNumber(row.expectedGainPercent || 0, 2)}%)</span>
             <span>현재 기여 ${formatNumber(row.contribution)}</span>
+            <span>우선 ${formatNumber(row.priorityScore)}</span>
           </div>
           <div class="upgrade-scenarios">${scenarios}</div>
         </div>
@@ -473,6 +502,7 @@ function render(data) {
   renderBosses(data);
   renderSide(data);
   renderExtra(data);
+  renderCoverage(data);
   renderUpgradePlan(data);
   renderItems(data);
   drawRadar(data.radar || {});

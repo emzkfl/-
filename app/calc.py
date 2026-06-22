@@ -368,6 +368,8 @@ JOB_DETAIL_RULES = [
     {"keywords": ("히어로",), "mainStat": "STR", "subStats": ("DEX",), "attackType": K_ATTACK, "weaponConstant": 1.34, "mastery": 0.91, "calibratedWeaponConstant": 1.34},
 ]
 
+KMS_JOB_NAMES = tuple(str(rule["keywords"][0]) for rule in JOB_DETAIL_RULES)
+
 BOSS_RULES = [
     {"name": "\ud558\ub4dc \uc720\ud53c\ud14c\ub974", "party": 188000, "solo": 430000},
     {"name": "\ub178\ub9d0 \uc720\ud53c\ud14c\ub974", "party": 241000, "solo": 520000},
@@ -606,7 +608,8 @@ def apply_profile_delta(stats: dict[str, float], delta: dict[str, dict[str, floa
             / 100,
         )
     for key, value in delta["combat"].items():
-        adjusted[key] = value_from(adjusted, key) + value
+        if value:
+            adjusted[key] = value_from(adjusted, key) + value
     adjusted[K_IED] = max(0.0, min(100.0, value_from(adjusted, K_IED)))
     adjusted[K_CRIT_RATE] = max(0.0, value_from(adjusted, K_CRIT_RATE))
     return adjusted
@@ -706,6 +709,52 @@ def special_detail_hybrid_model(character_class: str | None) -> dict[str, Any] |
 def uses_legacy_converted_model(character_class: str | None) -> bool:
     text = str(character_class or "")
     return any(keyword in text for keyword in COMBAT_CONVERTED_LEGACY_JOBS)
+
+
+def table_matches_job(rows: list[dict[str, Any]], character_class: str | None) -> bool:
+    text = str(character_class or "")
+    return any(keyword in text for row in rows for keyword in row["keywords"])
+
+
+def primary_job_name(rule: dict[str, Any] | None, fallback: str | None = None) -> str:
+    if rule:
+        return str(rule["keywords"][0])
+    return str(fallback or "")
+
+
+def calculation_coverage(character_class: str | None) -> dict[str, Any]:
+    detail_missing = [job for job in KMS_JOB_NAMES if not job_detail_rule(job)]
+    multiplier_missing = [job for job in KMS_JOB_NAMES if not table_matches_job(JOB_CONVERTED_MULTIPLIERS, job)]
+    combat_missing = [
+        job
+        for job in KMS_JOB_NAMES
+        if not (special_combat_converted_model(job) or table_matches_job(COMBAT_CONVERTED_JOB_FACTORS, job))
+    ]
+    detail_rule = job_detail_rule(character_class)
+    basic_rule = job_rule(character_class)
+    special_detail = special_detail_hybrid_model(character_class)
+    special_combat = special_combat_converted_model(character_class)
+    current_job = primary_job_name(detail_rule or basic_rule, character_class)
+    return {
+        "targetJobs": len(KMS_JOB_NAMES),
+        "coveredDetailJobs": len(KMS_JOB_NAMES) - len(detail_missing),
+        "coveredMultiplierJobs": len(KMS_JOB_NAMES) - len(multiplier_missing),
+        "coveredCombatJobs": len(KMS_JOB_NAMES) - len(combat_missing),
+        "missingDetailJobs": detail_missing,
+        "missingMultiplierJobs": multiplier_missing,
+        "missingCombatJobs": combat_missing,
+        "current": {
+            "inputClass": str(character_class or ""),
+            "job": current_job,
+            "detailRuleApplied": bool(detail_rule),
+            "basicRuleApplied": bool(basic_rule),
+            "mainStat": str((detail_rule or basic_rule or {}).get("mainStat") or ""),
+            "attackType": str((detail_rule or basic_rule or {}).get("attackType") or ""),
+            "statMode": str((detail_rule or {}).get("statMode") or "single"),
+            "specialDetailModel": str((special_detail or {}).get("model") or ""),
+            "specialCombatModel": str((special_combat or {}).get("model") or ""),
+        },
+    }
 
 
 def combat_power_converted_score(stats: dict[str, float], character_class: str | None) -> dict[str, Any]:
@@ -1382,25 +1431,35 @@ def build_item_upgrade_plan(
             attack_type,
             current_converted,
         )
+        scenarios = [scenario for scenario in scenarios if scenario["gain"] > 0]
         if not scenarios:
             continue
         best = scenarios[0]
         contribution = item_contribution(item, items, stats, character_class, current_converted)
+        starforce = int_number(item.get("starforce"))
+        grade = str(item.get("potential_option_grade") or "-")
+        additional_grade = str(item.get("additional_potential_option_grade") or "-")
+        potential_summary = " / ".join(potential_lines(item)) or "잠재 없음"
+        additional_summary = " / ".join(potential_lines(item, additional=True)) or "에디 없음"
         rows.append(
             {
                 "slot": item.get("item_equipment_slot") or item.get("item_equipment_part") or "-",
                 "part": item.get("item_equipment_part") or "-",
                 "name": item.get("item_name") or "-",
                 "icon": item.get("item_icon") or "",
-                "starforce": int_number(item.get("starforce")),
-                "grade": item.get("potential_option_grade") or "",
-                "additionalGrade": item.get("additional_potential_option_grade") or "",
+                "starforce": starforce,
+                "grade": grade,
+                "additionalGrade": additional_grade,
+                "currentState": f"{starforce}성 / 잠재 {grade} / 에디 {additional_grade}",
+                "potentialSummary": potential_summary,
+                "additionalPotentialSummary": additional_summary,
                 "recommendedType": best["type"],
                 "recommendedAction": best["action"],
                 "reason": best["reason"],
                 "expectedGain": round(best["gain"]),
                 "expectedGainPercent": round(best["gain"] / current_converted * 100, 2) if current_converted else 0.0,
                 "contribution": round(contribution),
+                "priorityScore": round(best["gain"] + contribution * 0.05),
                 "scenarios": [
                     {
                         "type": scenario["type"],
@@ -1925,6 +1984,7 @@ def build_view_model(raw: dict[str, Any]) -> dict[str, Any]:
         "hexaConvertedDetail": hexa_converted,
         "presetOptimization": preset_optimization,
         "presetViews": preset_views,
+        "calculationCoverage": calculation_coverage(character_class),
         "itemUpgradePlan": item_upgrade_plan,
         "bossBoard": boss_board,
         "radar": radar(stats, converted),
